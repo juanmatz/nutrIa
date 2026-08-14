@@ -1,0 +1,46 @@
+# ============================================================
+# NutrIA - .gitignore raíz
+# ============================================================
+
+# ---------- Entorno virtual Python ----------
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ---------- Django ----------
+*.sqlite3
+db.sqlite3
+/staticfiles/
+/media/
+**/.env
+**/.env.local
+
+# ---------- Node / Bun / Vite ----------
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+bun.lockb
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---------- Logs y temporales ----------
+*.log
+logs/
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# ---------- Editor / IDE ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---------- Docker ----------
+*.pid
+docker-compose.override.yml

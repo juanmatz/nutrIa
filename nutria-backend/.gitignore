@@ -1,0 +1,22 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+db.sqlite3
+/staticfiles/
+/media/
+
+# Entorno y variables secretas
+.env
+.env.local
+
+# Logs y temporales
+*.log
+logs/
+*.tmp
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
