@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: nutria-backend
+    runtime: python
+    rootDir: nutria-backend
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: OPENROUTER_API_KEY
+        sync: false
