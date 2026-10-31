@@ -9,3 +9,4 @@ fi
 pip install -r requirements.txt
 python manage.py collectstatic --noinput || true
 python manage.py migrate || true
+
