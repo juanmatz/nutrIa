@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-nutria}
       POSTGRES_USER: ${DB_USER:-nutria}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nutriapassword2026}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
@@ -16,6 +16,32 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nutria-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-production-ready-key}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,api}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      DB_NAME: ${DB_NAME:-nutria}
+      DB_USER: ${DB_USER:-nutria}
+      DB_PASSWORD: ${DB_PASSWORD:-nutriapassword2026}
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "${DJANGO_PORT:-3000}:3000"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py seed &&
+             gunicorn --bind 0.0.0.0:3000 --workers 3 --threads 2 config.wsgi:application"
 
 volumes:
   postgres_data:

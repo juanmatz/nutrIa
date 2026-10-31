@@ -4,7 +4,7 @@ from django.db import transaction
 from core.models import Alimento, Categoria, Rol
 
 
-ROLES = ['Administrador', 'Usuario']
+ROLES = ['Administrador', 'Usuario', 'Nutricionista']
 CATEGORIAS = ['Proteínas', 'Carbohidratos', 'Grasas', 'Bebidas']
 
 ALIMENTOS = [
@@ -32,7 +32,7 @@ class Command(BaseCommand):
         for nombre in ROLES:
             rol, creado = Rol.objects.get_or_create(nombre=nombre)
             roles[nombre] = rol
-            self.stdout.write(f"{'creado' if creado else 'ya existe'} rol: {nombre}")
+            self.stdout.write(f"{'creado' if creado else 'ya existe'} rol: {nombre} (id: {rol.id_rol})")
 
         categorias = {}
         for nombre in CATEGORIAS:
@@ -53,4 +53,4 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"{'creado' if creado else 'ya existe'} alimento: {nombre}")
 
-        self.stdout.write(self.style.SUCCESS('Seed completado.'))
+        self.stdout.write(self.style.SUCCESS('Seed completado con roles RBAC (Administrador, Usuario, Nutricionista).'))

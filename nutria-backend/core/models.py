@@ -39,6 +39,14 @@ class Usuario(models.Model):
     def is_authenticated(self):
         return True
 
+    @property
+    def is_staff(self):
+        return getattr(self, 'rol_id', None) == 1 or getattr(getattr(self, 'rol', None), 'id_rol', None) == 1
+
+    @property
+    def is_superuser(self):
+        return getattr(self, 'rol_id', None) == 1 or getattr(getattr(self, 'rol', None), 'id_rol', None) == 1
+
 
 class Categoria(models.Model):
     id_categoria = models.AutoField(primary_key=True)
