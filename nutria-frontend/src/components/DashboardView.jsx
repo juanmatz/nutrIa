@@ -1,17 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  TrendingDown,
   Droplets,
   Flame,
   Scale,
   Plus,
   Minus,
-  Sparkles,
-  ChevronRight,
-  PieChart,
-  BarChart2,
-  Activity,
-  ArrowUpRight
+  Apple,
+  Calendar,
+  ArrowRight,
+  Heart
 } from 'lucide-react';
 import { useMeals } from '../context/MealContext';
 
@@ -38,102 +35,138 @@ export default function DashboardView({
   const carbsPercent = Math.min(100, Math.round((dailyTotals.carbs / targetCarbs) * 100));
   const fatPercent = Math.min(100, Math.round((dailyTotals.fat / targetFat) * 100));
 
-  // Datos semanales para el gráfico de barras
-  const weeklyData = [
-    { day: 'Lun', kcal: 2100, goal: targetCalories },
-    { day: 'Mar', kcal: 2050, goal: targetCalories },
-    { day: 'Mié', kcal: 1980, goal: targetCalories },
-    { day: 'Jue', kcal: 2140, goal: targetCalories },
-    { day: 'Vie', kcal: currentCalories, goal: targetCalories, isToday: true },
-    { day: 'Sáb', kcal: 0, goal: targetCalories },
-    { day: 'Dom', kcal: 0, goal: targetCalories }
-  ];
+  // ─── FECHA ACTUAL & CÁLCULO DINÁMICO DE LA SEMANA ───
+  const today = new Date();
+  const dateFormattedFull = today.toLocaleDateString('es-ES', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+  const capitalizedDateFull = dateFormattedFull.charAt(0).toUpperCase() + dateFormattedFull.slice(1);
 
+  // Calcular la semana en curso (Lunes a Domingo) con fechas reales
+  const currentDayOfWeek = (today.getDay() + 6) % 7; // 0=Lun, 1=Mar, ..., 4=Vie, 6=Dom
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - currentDayOfWeek);
+
+  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const basePastKcal = [2100, 2050, 1980, 2140, 2090, 0, 0];
+
+  const weeklyData = dayNames.map((name, index) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + index);
+    const dayNum = d.getDate();
+    const isToday = index === currentDayOfWeek;
+    const isPast = index < currentDayOfWeek;
+    const isFuture = index > currentDayOfWeek;
+    const kcal = isToday ? currentCalories : (isPast ? basePastKcal[index] : 0);
+    // Meta cumplida si llegó al menos al 85% de las calorías recomendadas
+    const isCompleted = kcal >= Math.round(targetCalories * 0.85);
+
+    return {
+      day: name,
+      dayNum,
+      dateLabel: `${name} ${dayNum}`,
+      kcal,
+      isToday,
+      isPast,
+      isFuture,
+      isCompleted
+    };
+  });
+
+  const completedCount = weeklyData.filter(d => (d.isPast || d.isToday) && d.isCompleted).length;
+  const elapsedCount = currentDayOfWeek + 1;
   const maxWeeklyKcal = Math.max(...weeklyData.map(d => d.kcal), targetCalories, 2400);
 
-  // Escala de IMC
+  // Peso e IMC
   const imcValue = parseFloat(userMetrics?.imc || 22.4);
   const weightValue = userMetrics?.weight || 63.8;
   const heightValue = userMetrics?.height || 168;
-
-  // Cálculo de posición en la barra de IMC (15 a 35)
   const imcPositionPercent = Math.min(100, Math.max(0, ((imcValue - 15) / 20) * 100));
 
-  // Hidratación
-  const targetWater = 3000; // 3.0 L
+  // Agua
+  const targetWater = 3000;
   const waterPercent = Math.min(100, Math.round((waterMl / targetWater) * 100));
   const waterGlasses = Math.min(10, Math.round((waterMl / 300)));
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* ─── ENCABEZADO MINIMALISTA ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
+      {/* ─── BIENVENIDA, FECHA Y ACCIONES RÁPIDAS ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block mb-1">
-            Resumen Nutricional · Gráficos en Vivo
-          </span>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-            Panel de Progreso
+          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-xs font-bold text-emerald-600 dark:text-emerald-400 shadow-sm">
+              <Calendar size={13} />
+              {capitalizedDateFull}
+            </span>
+            <span className="text-xs text-[var(--text-secondary)] font-medium">
+              · Progreso de hoy: <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{caloriePercent}%</strong> ({currentCalories} de {targetCalories} kcal)
+            </span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
+            Progreso del Día
           </h1>
-          <p className="text-xs md:text-sm text-slate-300 mt-0.5">
-            Métricas visuales de balance calórico, macronutrientes, hidratación y composición corporal.
+          <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-1">
+            Revisa tu balance de energía, nutrientes y consumo de agua para hoy.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
-            onClick={onOpenWeightModal}
-            className="py-2.5 px-4 rounded-xl bg-[#13221C] border border-[#1F332A] hover:border-emerald-500/50 text-slate-200 text-xs font-semibold flex items-center gap-2 transition"
+            onClick={onNavigateToDietPlan}
+            className="py-2.5 px-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-card)] hover:border-emerald-500 text-[var(--text-primary)] text-xs font-semibold flex items-center gap-2 transition shadow-sm"
           >
-            <Scale size={15} className="text-emerald-400" />
-            Actualizar Peso
+            Ver Menú del Día <ArrowRight size={14} className="text-emerald-500" />
           </button>
           <button
             onClick={onOpenMealModal}
-            className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition transform active:scale-95"
+            className="py-2.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-2 transition transform active:scale-95"
           >
-            <Plus size={16} />
-            Registrar Comida
+            <Plus size={16} /> Registrar Comida
           </button>
         </div>
       </div>
 
-      {/* ─── FILA 1 DE GRÁFICOS: CALORÍAS (CIRCULAR) & MACRONUTRIENTES (BARRAS) ─── */}
+      {/* ─── FILA 1: CALORÍAS DEL DÍA & TUS NUTRIENTES ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* GRÁFICO 1: ANILLO CIRCULAR DE CALORÍAS (5 cols) */}
-        <div className="lg:col-span-5 bg-[#121C18] border border-[#1F332A] rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
+        {/* GRÁFICO 1: ANILLO DE CALORÍAS (5 cols) */}
+        <div className="lg:col-span-5 bg-[var(--bg-card)] border border-[var(--border-card)] rounded-3xl p-6 md:p-7 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Flame size={17} />
+              <div className="w-9 h-9 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <Flame size={18} />
               </div>
-              <h2 className="text-sm font-bold text-white">Balance Calórico</h2>
+              <div>
+                <h2 className="text-sm font-bold text-[var(--text-primary)]">Tu Energía de Hoy</h2>
+                <p className="text-[11px] text-[var(--text-secondary)]">Calorías consumidas</p>
+              </div>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-              {caloriePercent}% cumplido
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+              {caloriePercent}% listo
             </span>
           </div>
 
-          {/* Gráfico SVG Anular */}
-          <div className="flex items-center justify-center py-4 relative">
+          {/* Anillo visual SVG */}
+          <div className="flex items-center justify-center py-6 relative">
             <svg className="w-48 h-48 transform -rotate-90" viewBox="0 0 120 120">
-              {/* Fondo del anillo */}
               <circle
                 cx="60"
                 cy="60"
                 r="48"
                 fill="none"
-                stroke="#1B2E24"
-                strokeWidth="11"
+                stroke="currentColor"
+                className="text-[var(--border-card)]"
+                strokeWidth="10"
               />
-              {/* Anillo de progreso */}
               <circle
                 cx="60"
                 cy="60"
                 r="48"
                 fill="none"
-                stroke="#10B981"
-                strokeWidth="11"
+                stroke="#52B788"
+                strokeWidth="10"
                 strokeDasharray="301.6"
                 strokeDashoffset={301.6 - (301.6 * caloriePercent) / 100}
                 strokeLinecap="round"
@@ -141,57 +174,58 @@ export default function DashboardView({
               />
             </svg>
 
-            {/* Datos centrales en el anillo */}
+            {/* Texto al centro del anillo */}
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-3xl font-black text-white tracking-tight">
+              <span className="text-3xl font-black text-[var(--text-primary)] tracking-tight">
                 {currentCalories}
               </span>
-              <span className="text-xs text-slate-400 font-medium">de {targetCalories} kcal</span>
-              <span className="text-[11px] text-emerald-400 mt-1 font-semibold">
-                {remainingCalories > 0 ? `${remainingCalories} kcal restantes` : '¡Meta alcanzada!'}
+              <span className="text-xs text-[var(--text-secondary)] font-medium">de {targetCalories} kcal</span>
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-300 mt-1 font-semibold">
+                {remainingCalories > 0 ? `Te faltan ${remainingCalories} kcal` : '¡Completaste tu meta!'}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#1F332A] text-center">
-            <div className="bg-[#0F1715] p-3 rounded-2xl border border-[#1F332A]">
-              <span className="text-[11px] text-slate-400 block font-medium">Consumidas</span>
-              <span className="text-lg font-bold text-white">{currentCalories} kcal</span>
+          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[var(--border-card)] text-center">
+            <div className="bg-[var(--bg-app)] p-3 rounded-2xl border border-[var(--border-card)] shadow-sm">
+              <span className="text-[11px] text-[var(--text-secondary)] block">Has comido</span>
+              <span className="text-base font-extrabold text-[var(--text-primary)]">{currentCalories} kcal</span>
             </div>
-            <div className="bg-[#0F1715] p-3 rounded-2xl border border-[#1F332A]">
-              <span className="text-[11px] text-slate-400 block font-medium">Meta Diaria</span>
-              <span className="text-lg font-bold text-emerald-400">{targetCalories} kcal</span>
+            <div className="bg-[var(--bg-app)] p-3 rounded-2xl border border-[var(--border-card)] shadow-sm">
+              <span className="text-[11px] text-[var(--text-secondary)] block">Tu objetivo</span>
+              <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{targetCalories} kcal</span>
             </div>
           </div>
         </div>
 
-        {/* GRÁFICO 2: BARRAS DE MACRONUTRIENTES (7 cols) */}
-        <div className="lg:col-span-7 bg-[#121C18] border border-[#1F332A] rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+        {/* GRÁFICO 2: TUS NUTRIENTES (BARRAS CLARAS) (7 cols) */}
+        <div className="lg:col-span-7 bg-[var(--bg-card)] border border-[var(--border-card)] rounded-3xl p-6 md:p-7 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <PieChart size={17} />
+              <div className="w-9 h-9 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500">
+                <Apple size={18} />
               </div>
-              <h2 className="text-sm font-bold text-white">Distribución de Macronutrientes</h2>
+              <div>
+                <h2 className="text-sm font-bold text-[var(--text-primary)]">Tus Nutrientes Principales</h2>
+                <p className="text-[11px] text-[var(--text-secondary)]">Proteínas, carbohidratos y grasas</p>
+              </div>
             </div>
-            <span className="text-xs text-slate-400">
-              Gramajes del día
-            </span>
+            <span className="text-xs text-[var(--text-secondary)] font-medium">En gramos (g)</span>
           </div>
 
           <div className="space-y-5 my-auto">
             {/* Proteínas */}
             <div>
               <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="font-semibold text-amber-300 flex items-center gap-1.5">
+                <span className="font-semibold text-amber-600 dark:text-amber-300 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                  Proteínas
+                  Proteínas (Fuerza y recuperación)
                 </span>
-                <span className="text-slate-300 font-bold">
-                  {dailyTotals.protein}g <span className="text-slate-400 font-normal">/ {targetProtein}g ({proteinPercent}%)</span>
+                <span className="text-[var(--text-primary)] font-bold">
+                  {dailyTotals.protein}g <span className="text-[var(--text-secondary)] font-normal">/ {targetProtein}g</span>
                 </span>
               </div>
-              <div className="w-full h-3 bg-[#0F1715] rounded-full overflow-hidden border border-[#1F332A]">
+              <div className="w-full h-3 bg-[var(--bg-app)] rounded-full overflow-hidden border border-[var(--border-card)]">
                 <div
                   className="h-full bg-amber-400 rounded-full transition-all duration-700"
                   style={{ width: `${proteinPercent}%` }}
@@ -202,34 +236,34 @@ export default function DashboardView({
             {/* Carbohidratos */}
             <div>
               <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                  Carbohidratos
+                <span className="font-semibold text-emerald-600 dark:text-emerald-300 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  Carbohidratos (Energía diaria)
                 </span>
-                <span className="text-slate-300 font-bold">
-                  {dailyTotals.carbs}g <span className="text-slate-400 font-normal">/ {targetCarbs}g ({carbsPercent}%)</span>
+                <span className="text-[var(--text-primary)] font-bold">
+                  {dailyTotals.carbs}g <span className="text-[var(--text-secondary)] font-normal">/ {targetCarbs}g</span>
                 </span>
               </div>
-              <div className="w-full h-3 bg-[#0F1715] rounded-full overflow-hidden border border-[#1F332A]">
+              <div className="w-full h-3 bg-[var(--bg-app)] rounded-full overflow-hidden border border-[var(--border-card)]">
                 <div
-                  className="h-full bg-emerald-400 rounded-full transition-all duration-700"
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-700"
                   style={{ width: `${carbsPercent}%` }}
                 />
               </div>
             </div>
 
-            {/* Grasas */}
+            {/* Grasas saludables */}
             <div>
               <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="font-semibold text-yellow-300 flex items-center gap-1.5">
+                <span className="font-semibold text-yellow-600 dark:text-yellow-300 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                  Grasas Saludables
+                  Grasas Saludables (Vitalidad)
                 </span>
-                <span className="text-slate-300 font-bold">
-                  {dailyTotals.fat}g <span className="text-slate-400 font-normal">/ {targetFat}g ({fatPercent}%)</span>
+                <span className="text-[var(--text-primary)] font-bold">
+                  {dailyTotals.fat}g <span className="text-[var(--text-secondary)] font-normal">/ {targetFat}g</span>
                 </span>
               </div>
-              <div className="w-full h-3 bg-[#0F1715] rounded-full overflow-hidden border border-[#1F332A]">
+              <div className="w-full h-3 bg-[var(--bg-app)] rounded-full overflow-hidden border border-[var(--border-card)]">
                 <div
                   className="h-full bg-yellow-400 rounded-full transition-all duration-700"
                   style={{ width: `${fatPercent}%` }}
@@ -238,106 +272,111 @@ export default function DashboardView({
             </div>
           </div>
 
-          {/* Barra apilada de proporción */}
-          <div className="pt-4 border-t border-[#1F332A] mt-4">
-            <span className="text-[11px] text-slate-400 font-medium block mb-2">Proporción Actual Ingerida:</span>
-            <div className="w-full h-2.5 rounded-full flex overflow-hidden">
-              <div
-                style={{ width: `${(dailyTotals.protein / (dailyTotals.protein + dailyTotals.carbs + dailyTotals.fat || 1)) * 100}%` }}
-                className="bg-amber-400 transition-all duration-500"
-                title="Proteínas"
-              />
-              <div
-                style={{ width: `${(dailyTotals.carbs / (dailyTotals.protein + dailyTotals.carbs + dailyTotals.fat || 1)) * 100}%` }}
-                className="bg-emerald-400 transition-all duration-500"
-                title="Carbohidratos"
-              />
-              <div
-                style={{ width: `${(dailyTotals.fat / (dailyTotals.protein + dailyTotals.carbs + dailyTotals.fat || 1)) * 100}%` }}
-                className="bg-yellow-400 transition-all duration-500"
-                title="Grasas"
-              />
-            </div>
+          <div className="pt-4 border-t border-[var(--border-card)] mt-4 flex items-center justify-between text-xs text-[var(--text-secondary)]">
+            <span>Distribución balanceada</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Nutrición consciente</span>
           </div>
         </div>
       </div>
 
-      {/* ─── FILA 2 DE GRÁFICOS: EVOLUCIÓN SEMANAL & HIDRATACIÓN & IMC ─── */}
+      {/* ─── FILA 2: EVOLUCIÓN SEMANAL & AGUA & MEDIDAS ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* GRÁFICO 3: EVOLUCIÓN SEMANAL (BAR CHART SVG) */}
-        <div className="bg-[#121C18] border border-[#1F332A] rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
+        {/* GRÁFICO 3: CALENDARIO DE CUMPLIMIENTO */}
+        <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <BarChart2 size={17} />
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <Calendar size={16} />
               </div>
-              <h2 className="text-sm font-bold text-white">Evolución Semanal</h2>
+              <div>
+                <h2 className="text-sm font-bold text-[var(--text-primary)]">Calendario de Cumplimiento</h2>
+                <p className="text-[11px] text-[var(--text-secondary)]">Semana en curso</p>
+              </div>
             </div>
-            <span className="text-xs text-slate-400">Lun - Dom</span>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+              {completedCount} de {elapsedCount} días cumplidos
+            </span>
           </div>
 
-          {/* Gráfico visual de barras semanales */}
-          <div className="h-44 flex items-end justify-between gap-2 pt-6 pb-2 px-1">
+          <div className="h-40 flex items-end justify-between gap-1.5 pt-3 pb-1 px-1">
             {weeklyData.map((d, i) => {
-              const heightPct = d.kcal > 0 ? Math.round((d.kcal / maxWeeklyKcal) * 100) : 6;
+              const heightPct = d.kcal > 0 ? Math.round((d.kcal / maxWeeklyKcal) * 100) : 8;
               return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                  <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition font-mono">
-                    {d.kcal}
-                  </span>
-                  <div className="w-full bg-[#0F1715] rounded-t-xl h-full flex items-end overflow-hidden">
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
+                  {/* Etiqueta superior de cumplimiento */}
+                  <div className="text-[9px] font-extrabold h-4 flex items-center justify-center">
+                    {d.isToday ? (
+                      <span className="px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 font-black tracking-tighter">
+                        HOY
+                      </span>
+                    ) : d.isCompleted ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold" title="Meta cumplida">✓</span>
+                    ) : (
+                      <span className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100">{d.kcal || '-'}</span>
+                    )}
+                  </div>
+
+                  <div className="w-full bg-[var(--bg-app)] rounded-t-xl h-full flex items-end overflow-hidden border border-[var(--border-card)]">
                     <div
                       style={{ height: `${heightPct}%` }}
                       className={`w-full rounded-t-xl transition-all duration-500 ${
                         d.isToday
-                          ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-lg shadow-emerald-500/30'
+                          ? 'bg-emerald-500 shadow-md shadow-emerald-500/30'
+                          : d.isCompleted
+                          ? 'bg-emerald-600/70 group-hover:bg-emerald-600'
                           : d.kcal > 0
-                          ? 'bg-emerald-800/60 group-hover:bg-emerald-600/80'
-                          : 'bg-slate-800/40'
+                          ? 'bg-amber-500/60'
+                          : 'bg-[var(--bg-card-sub)]'
                       }`}
+                      title={`${d.dateLabel}: ${d.kcal} kcal`}
                     />
                   </div>
-                  <span className={`text-xs font-semibold ${d.isToday ? 'text-emerald-400' : 'text-slate-400'}`}>
-                    {d.day}
-                  </span>
+
+                  <div className="text-center pt-0.5">
+                    <span className={`text-[11px] font-bold block leading-tight ${d.isToday ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--text-primary)]'}`}>
+                      {d.day}
+                    </span>
+                    <span className="text-[10px] text-[var(--text-muted)] block font-medium">
+                      {d.dayNum}
+                    </span>
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-[#1F332A]">
-            <span>Línea meta: {targetCalories} kcal</span>
-            <span className="text-emerald-400 font-semibold">Hoy: {currentCalories} kcal</span>
+          <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] pt-3 border-t border-[var(--border-card)]">
+            <span>Meta: {targetCalories} kcal</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Hoy: {currentCalories} kcal ({caloriePercent}%)</span>
           </div>
         </div>
 
-        {/* GRÁFICO 4: HIDRATACIÓN INTERACTIVA */}
-        <div className="bg-[#121C18] border border-[#1F332A] rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
+        {/* GRÁFICO 4: CONSUMO DE AGUA */}
+        <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                <Droplets size={17} />
+              <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-500">
+                <Droplets size={16} />
               </div>
-              <h2 className="text-sm font-bold text-white">Hidratación Diaria</h2>
+              <h2 className="text-sm font-bold text-[var(--text-primary)]">Agua de Hoy</h2>
             </div>
-            <span className="text-xs font-bold text-cyan-400">{waterPercent}%</span>
+            <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400">{waterPercent}%</span>
           </div>
 
-          {/* Vasos de agua interactivos */}
-          <div className="my-auto py-3">
+          <div className="my-auto py-2">
             <div className="text-center mb-3">
-              <span className="text-2xl font-black text-white">{(waterMl / 1000).toFixed(1)}</span>
-              <span className="text-xs text-slate-400 font-medium"> / 3.0 Litros</span>
+              <span className="text-2xl font-black text-[var(--text-primary)]">{(waterMl / 1000).toFixed(1)}</span>
+              <span className="text-xs text-[var(--text-secondary)] font-medium"> de 3.0 Litros</span>
             </div>
 
-            <div className="grid grid-cols-5 gap-2 px-3">
+            <div className="grid grid-cols-5 gap-2 px-2">
               {[...Array(10)].map((_, i) => (
                 <div
                   key={i}
                   className={`h-7 rounded-lg border transition-all duration-300 flex items-center justify-center ${
                     i < waterGlasses
-                      ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 shadow-sm shadow-cyan-500/20'
-                      : 'bg-[#0F1715] border-[#1F332A] text-slate-600'
+                      ? 'bg-cyan-500/25 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold'
+                      : 'bg-[var(--bg-app)] border-[var(--border-card)] text-[var(--text-muted)]'
                   }`}
                   title={`Vaso ${i + 1} (~300 ml)`}
                 >
@@ -347,16 +386,15 @@ export default function DashboardView({
             </div>
           </div>
 
-          {/* Botones de incremento rápido */}
-          <div className="flex items-center justify-between gap-2 pt-3 border-t border-[#1F332A]">
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--border-card)]">
             <button
               onClick={() => removeWater(250)}
               aria-label="Restar 250 mililitros de agua"
-              className="p-2 rounded-xl bg-[#0F1715] border border-[#1F332A] hover:bg-[#16231E] text-slate-300 text-xs transition"
+              className="p-2 rounded-xl bg-[var(--bg-app)] border border-[var(--border-card)] hover:border-emerald-500 text-[var(--text-primary)] transition shadow-sm"
             >
               <Minus size={14} />
             </button>
-            <span className="text-xs font-semibold text-slate-300">Vasos de 250ml</span>
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Vasos de 250ml</span>
             <button
               onClick={() => addWater(250)}
               aria-label="Sumar 250 mililitros de agua"
@@ -367,64 +405,61 @@ export default function DashboardView({
           </div>
         </div>
 
-        {/* GRÁFICO 5: ESCALA VISUAL DE IMC */}
-        <div className="bg-[#121C18] border border-[#1F332A] rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
+        {/* GRÁFICO 5: TUS MEDIDAS / IMC */}
+        <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Scale size={17} />
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <Scale size={16} />
               </div>
-              <h2 className="text-sm font-bold text-white">Índice de Masa Corporal</h2>
+              <h2 className="text-sm font-bold text-[var(--text-primary)]">Tu Peso Saludable</h2>
             </div>
-            <span className="text-xs font-bold text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
               Saludable
             </span>
           </div>
 
-          {/* Escala Gráfica Continua */}
           <div className="my-auto py-2">
             <div className="flex items-baseline justify-between mb-2">
               <div>
-                <span className="text-2xl font-black text-white">{imcValue}</span>
-                <span className="text-xs text-slate-400 ml-1">kg/m²</span>
+                <span className="text-2xl font-black text-[var(--text-primary)]">{weightValue}</span>
+                <span className="text-xs text-[var(--text-secondary)] ml-1 font-medium">kg</span>
               </div>
-              <span className="text-xs text-slate-300 font-semibold">
-                {weightValue} kg · {heightValue} cm
+              <span className="text-xs text-[var(--text-secondary)]">
+                IMC: <strong className="text-[var(--text-primary)]">{imcValue}</strong> · Altura: {heightValue} cm
               </span>
             </div>
 
-            {/* Barra de color de rangos de IMC */}
+            {/* Barra de escala suave */}
             <div className="relative pt-4 pb-2">
-              {/* Indicador puntero */}
               <div
                 style={{ left: `${imcPositionPercent}%` }}
                 className="absolute top-0 transform -translate-x-1/2 flex flex-col items-center transition-all duration-500"
               >
-                <span className="w-2.5 h-2.5 rotate-45 bg-white shadow-sm" />
+                <span className="w-2.5 h-2.5 rotate-45 bg-emerald-500 dark:bg-white shadow-sm" />
               </div>
 
-              {/* Barra segmentada por colores */}
-              <div className="w-full h-3 rounded-full flex overflow-hidden border border-[#1F332A]">
-                <div className="w-[18%] bg-cyan-500/70" title="Bajo peso (< 18.5)" />
-                <div className="w-[32%] bg-emerald-500" title="Normal (18.5 - 24.9)" />
-                <div className="w-[25%] bg-amber-500/80" title="Sobrepeso (25 - 29.9)" />
-                <div className="w-[25%] bg-rose-500/80" title="Obesidad (≥ 30)" />
+              <div className="w-full h-2.5 rounded-full flex overflow-hidden border border-[var(--border-card)]">
+                <div className="w-[20%] bg-cyan-500/70" />
+                <div className="w-[30%] bg-emerald-500" />
+                <div className="w-[25%] bg-amber-500/80" />
+                <div className="w-[25%] bg-rose-500/70" />
               </div>
 
-              <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-medium">
-                <span>Bajo (&lt;18.5)</span>
-                <span className="text-emerald-300 font-bold">Normal (18.5-24.9)</span>
+              <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-2 font-medium">
+                <span>Bajo</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">Normal</span>
                 <span>Sobrepeso</span>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-[#1F332A]">
+          <div className="pt-3 border-t border-[var(--border-card)]">
             <button
               onClick={onOpenWeightModal}
-              className="w-full py-2 px-3 rounded-xl bg-[#0F1715] hover:bg-[#16231E] border border-[#1F332A] text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+              className="w-full py-2 px-3 rounded-xl bg-[var(--bg-app)] hover:border-emerald-500 border border-[var(--border-card)] text-[var(--text-primary)] text-xs font-semibold flex items-center justify-center gap-1.5 transition shadow-sm"
             >
-              Recalcular Peso & Altura <ArrowUpRight size={14} className="text-emerald-400" />
+              Actualizar Medidas
             </button>
           </div>
         </div>

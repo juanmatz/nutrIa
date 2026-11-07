@@ -22,7 +22,7 @@ export default function FoodsView({ onShowToast, onOpenAuthModal }) {
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
   const [isAllergyModalOpen, setIsAllergyModalOpen] = useState(false);
 
-  // Lista de alergias o intolerancias simplificada
+  // Lista de alergias o alimentos a evitar
   const [allergies, setAllergies] = useState([
     {
       id: 1,
@@ -41,7 +41,6 @@ export default function FoodsView({ onShowToast, onOpenAuthModal }) {
     }
   ]);
 
-  // Carga de alimentos
   const loadData = async () => {
     setLoading(true);
     const data = await apiService.getAlimentos();
@@ -57,7 +56,7 @@ export default function FoodsView({ onShowToast, onOpenAuthModal }) {
     const updated = await apiService.updatePrioridad(id_alimento, newPriority);
     setAlimentos(updated);
     if (onShowToast) {
-      onShowToast(`Preferencia de alimento actualizada.`);
+      onShowToast(`Preferencia guardada.`);
     }
   };
 
@@ -65,7 +64,7 @@ export default function FoodsView({ onShowToast, onOpenAuthModal }) {
     const created = await apiService.createAlimento(newFoodData);
     setAlimentos(prev => [created, ...prev]);
     if (onShowToast) {
-      onShowToast(`✓ Alimento "${created.nombre}" añadido al catálogo.`);
+      onShowToast(`✓ "${created.nombre}" añadido al catálogo.`);
     }
   };
 
@@ -83,13 +82,11 @@ export default function FoodsView({ onShowToast, onOpenAuthModal }) {
 
   const handleSaveAllergies = (newList) => {
     setAllergies(newList);
-    if (onShowToast) onShowToast("Preferencias de alergias actualizadas.");
+    if (onShowToast) onShowToast("Preferencias de alimentos guardadas.");
   };
 
-  // Categorías disponibles
   const categories = ['Todos', 'Proteínas', 'Carbohidratos', 'Grasas Saludables', 'Frutas y Verduras', 'Bebidas'];
 
-  // Filtrado
   const filteredFoods = alimentos.filter(food => {
     const matchesSearch = food.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (food.categoria_nombre && food.categoria_nombre.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -99,73 +96,72 @@ export default function FoodsView({ onShowToast, onOpenAuthModal }) {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
       {/* Encabezado */}
-      <div className="bg-[#121C18] border border-[#1F332A] rounded-3xl p-6 md:p-8 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#1F332A]">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-3xl p-6 md:p-8 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[var(--border-card)]">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 mb-1">
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1">
               <Apple size={15} />
-              <span>Base de Alimentos Nutritivos</span>
+              <span>Base Nutricional Limpia</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
               Catálogo de Alimentos
             </h1>
-            <p className="text-xs md:text-sm text-slate-300 mt-1 max-w-2xl">
-              Consulta el valor nutricional por cada 100g de tus alimentos favoritos y personaliza tus preferencias.
+            <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">
+              Consulta las calorías y nutrientes de tus alimentos por cada 100g para armar platos ricos y balanceados.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => setIsAllergyModalOpen(true)}
-              className="py-2.5 px-4 rounded-xl bg-[#0F1715] border border-[#1F332A] hover:border-emerald-500/50 text-slate-200 text-xs font-semibold flex items-center gap-2 transition"
+              className="py-2.5 px-4 rounded-2xl bg-[var(--bg-card-sub)] border border-[var(--border-card)] hover:border-emerald-500 text-[var(--text-primary)] text-xs font-bold flex items-center gap-2 transition shadow-sm"
             >
-              Mis Alergias ({allergies.length})
+              Alimentos a Evitar ({allergies.length})
             </button>
 
             {isAdmin ? (
               <button
                 onClick={() => setIsFoodModalOpen(true)}
-                className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition"
+                className="py-2.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-2 transition"
               >
                 <Plus size={16} /> Añadir Alimento
               </button>
             ) : (
               <button
                 onClick={onOpenAuthModal}
-                className="py-2.5 px-4 rounded-xl bg-[#0F1715] border border-dashed border-[#1F332A] hover:border-slate-500 text-slate-400 text-xs font-medium flex items-center gap-2 transition"
-                title="Inicia sesión como Administrador para agregar alimentos a la base común"
+                className="py-2.5 px-4 rounded-2xl bg-[var(--bg-card-sub)] border border-[var(--border-card)] text-[var(--text-secondary)] text-xs font-medium flex items-center gap-2 transition"
+                title="Inicia sesión como Administrador para agregar nuevos alimentos"
               >
-                <Lock size={14} /> Modo Usuario (Solo Lectura)
+                <Lock size={14} /> Modo Consulta
               </button>
             )}
           </div>
         </div>
 
-        {/* Buscador & Filtros por Categoría */}
+        {/* Buscador & Categorías */}
         <div className="pt-6 space-y-4">
           <div className="relative">
-            <Search size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" />
+            <Search size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)]" />
             <input
               type="text"
-              placeholder="Buscar por nombre (ej. Salmón, Avena, Pollo, Aguacate)..."
+              placeholder="Buscar alimento (ej. Salmón, Avena, Pollo, Aguacate)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0F1715] border border-[#1F332A] focus:border-emerald-400 rounded-2xl pl-11 pr-4 py-3 text-sm text-white outline-none transition placeholder-slate-500"
+              className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-2xl pl-11 pr-4 py-3 text-sm text-[var(--text-primary)] outline-none transition placeholder-[var(--text-muted)] focus:ring-1 focus:ring-emerald-400 shadow-sm"
             />
           </div>
 
-          {/* Botones de categorías */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategoryFilter(cat)}
-                className={`py-1.5 px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                className={`py-2 px-4 rounded-2xl text-xs font-bold whitespace-nowrap transition shadow-sm ${
                   activeCategoryFilter === cat
-                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-                    : 'bg-[#0F1715] border border-[#1F332A] text-slate-300 hover:text-white hover:border-emerald-500/30'
+                    ? 'bg-emerald-500 text-white font-extrabold shadow-md shadow-emerald-500/20'
+                    : 'bg-[var(--bg-card)] border border-[var(--border-card)] text-[var(--text-primary)] hover:border-emerald-500/60'
                 }`}
               >
                 {cat}
@@ -178,12 +174,12 @@ export default function FoodsView({ onShowToast, onOpenAuthModal }) {
       {/* Grid de Alimentos */}
       <div>
         <div className="flex items-center justify-between px-1 mb-4">
-          <h2 className="text-sm font-bold text-slate-300">
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">
             {filteredFoods.length} {filteredFoods.length === 1 ? 'alimento disponible' : 'alimentos disponibles'}
           </h2>
           <button
             onClick={loadData}
-            className="text-xs text-slate-400 hover:text-emerald-300 flex items-center gap-1 transition"
+            className="text-xs text-[var(--text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 transition font-medium"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             Actualizar
@@ -193,14 +189,14 @@ export default function FoodsView({ onShowToast, onOpenAuthModal }) {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-44 bg-[#121C18] border border-[#1F332A] rounded-2xl animate-pulse" />
+              <div key={i} className="h-44 bg-[var(--bg-card)] border border-[var(--border-card)] rounded-3xl animate-pulse" />
             ))}
           </div>
         ) : filteredFoods.length === 0 ? (
-          <div className="bg-[#121C18] border border-dashed border-[#1F332A] rounded-3xl p-12 text-center text-slate-400 space-y-2">
-            <Utensils size={36} className="mx-auto text-slate-500" />
-            <h3 className="text-base font-semibold text-slate-200">No se encontraron alimentos</h3>
-            <p className="text-xs text-slate-400">
+          <div className="bg-[var(--bg-card)] border border-dashed border-[var(--border-card)] rounded-3xl p-12 text-center text-[var(--text-secondary)] space-y-2">
+            <Utensils size={36} className="mx-auto text-[var(--text-muted)]" />
+            <h3 className="text-base font-bold text-[var(--text-primary)]">No se encontraron alimentos</h3>
+            <p className="text-xs text-[var(--text-secondary)]">
               Prueba con otro término de búsqueda o selecciona otra categoría.
             </p>
           </div>

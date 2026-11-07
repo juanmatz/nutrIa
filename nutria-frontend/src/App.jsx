@@ -9,14 +9,17 @@ import AdminUsersView from './components/AdminUsersView';
 import WeightModal from './components/WeightModal';
 import MealModal from './components/MealModal';
 import AuthModal from './components/auth/AuthModal';
+import AccessibilityModal from './components/AccessibilityModal';
 import RoleGate from './components/auth/RoleGate';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { MealProvider, useMeals } from './context/MealContext';
+import { AccessibilityProvider, useAccessibility } from './context/AccessibilityContext';
 import { Sparkles, X } from 'lucide-react';
 
 function AppContent() {
   const { user, updateProfile } = useAuth();
   const { addMeal } = useMeals();
+  const { isAccessibilityModalOpen, setIsAccessibilityModalOpen } = useAccessibility();
 
   // Pestaña activa ('dashboard', 'diet-plan', 'foods', 'chat', 'admin-users')
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -49,13 +52,12 @@ function AppContent() {
       calorias_diarias: newTdee
     });
 
-    showToast(`✓ Datos actualizados: ${weight} kg · IMC ${imc} kg/m².`);
+    showToast(`✓ Datos guardados: ${weight} kg · IMC ${imc} kg/m².`);
   };
 
   const handleAddMeal = (newMeal) => {
-    // Guarda de forma persistente la comida en el MealContext y en localStorage
     addMeal(newMeal);
-    showToast(`✓ Comida "${newMeal.nombre}" (${newMeal.calorias} kcal) añadida y registrada con éxito.`);
+    showToast(`✓ Comida "${newMeal.nombre}" (${newMeal.calorias} kcal) guardada en tu plan.`);
   };
 
   const handleUpdateMetricsFromChat = (newParams) => {
@@ -77,7 +79,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A100D] text-slate-100 flex flex-col md:flex-row antialiased selection:bg-emerald-500/30 selection:text-white">
+    <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col md:flex-row antialiased selection:bg-emerald-500/30 selection:text-white transition-colors duration-200">
       {/* Sidebar fijo a la izquierda */}
       <Sidebar
         activeTab={activeTab}
@@ -142,15 +144,15 @@ function AppContent() {
         </main>
 
         {/* Footer simple y limpio */}
-        <footer className="border-t border-[#1F332A] py-6 px-8 text-center text-xs text-slate-400">
+        <footer className="border-t border-[var(--border-card)] py-6 px-8 text-center text-xs text-[var(--text-secondary)]">
           <div className="flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto gap-2">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="font-semibold text-slate-300">NutrIA</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="font-semibold text-[var(--text-primary)]">NutrIA</span>
               <span>—</span>
-              <span>Nutrición Inteligente y Alimentación Saludable</span>
+              <span>Nutrición & Vida Saludable</span>
             </div>
-            <div className="text-[11px] text-slate-500">
+            <div className="text-[11px] text-[var(--text-muted)]">
               © 2026 NutrIA. Todos los derechos reservados.
             </div>
           </div>
@@ -162,7 +164,7 @@ function AppContent() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 right-6 z-50 max-w-md bg-[#121C18] border border-emerald-500/50 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5"
+          className="fixed bottom-6 right-6 z-50 max-w-md bg-[var(--bg-card)] border border-emerald-500/50 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
@@ -202,6 +204,11 @@ function AppContent() {
         onClose={() => setIsAuthModalOpen(false)}
         onShowToast={showToast}
       />
+
+      <AccessibilityModal
+        isOpen={isAccessibilityModalOpen}
+        onClose={() => setIsAccessibilityModalOpen(false)}
+      />
     </div>
   );
 }
@@ -209,9 +216,11 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <MealProvider>
-        <AppContent />
-      </MealProvider>
+      <AccessibilityProvider>
+        <MealProvider>
+          <AppContent />
+        </MealProvider>
+      </AccessibilityProvider>
     </AuthProvider>
   );
 }

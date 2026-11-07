@@ -118,47 +118,47 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-[#111827] border border-[#1F2937] rounded-3xl p-6 md:p-8 shadow-2xl glow-mint text-slate-100 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-[var(--bg-card)] border border-[var(--border-card)] rounded-3xl p-6 md:p-8 shadow-2xl text-[var(--text-primary)] max-h-[92vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+          className="absolute top-5 right-5 p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--bg-card-sub)] transition"
         >
           <X size={18} />
         </button>
 
         {/* Demo Fast Switchers */}
-        <div className="mb-6 p-3 rounded-2xl bg-[#090D14] border border-[#1F2937]">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-            ⚡ Acceso Rápido Demo (RBAC):
+        <div className="mb-6 p-3 rounded-2xl bg-[var(--bg-app)] border border-[var(--border-card)]">
+          <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-2">
+            ⚡ Acceso Rápido Demo:
           </span>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => handleDemoSwitch('user')}
-              className="p-2 rounded-xl bg-[#111827] border border-[#00F0A8]/40 hover:border-[#00F0A8] text-left text-xs transition group"
+              className="p-2.5 rounded-xl bg-[var(--bg-card)] border border-emerald-500/40 hover:border-emerald-500 text-left text-xs transition group shadow-sm"
             >
-              <div className="font-bold text-white group-hover:text-[#00F0A8] truncate">Camila Torres</div>
-              <div className="text-[10px] text-slate-400 font-semibold">Rol: Usuario / Paciente</div>
+              <div className="font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 truncate">Camila Torres</div>
+              <div className="text-[10px] text-[var(--text-secondary)] font-medium">Usuario / Paciente</div>
             </button>
             <button
               type="button"
               onClick={() => handleDemoSwitch('admin')}
-              className="p-2 rounded-xl bg-[#111827] border border-cyan-500/40 hover:border-cyan-400 text-left text-xs transition group"
+              className="p-2.5 rounded-xl bg-[var(--bg-card)] border border-emerald-500/40 hover:border-emerald-500 text-left text-xs transition group shadow-sm"
             >
-              <div className="font-bold text-white group-hover:text-cyan-400 truncate">Dr. Roberto (Admin)</div>
-              <div className="text-[10px] text-cyan-400 font-semibold">Rol: Administrador (1)</div>
+              <div className="font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 truncate">Dr. Roberto (Admin)</div>
+              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Administrador (1)</div>
             </button>
           </div>
         </div>
 
         {/* Tab switch: Login / Register */}
-        <div className="flex bg-[#090D14] p-1 rounded-2xl border border-[#1F2937] mb-6">
+        <div className="flex bg-[var(--bg-app)] p-1 rounded-2xl border border-[var(--border-card)] mb-6">
           <button
             type="button"
             onClick={() => { setIsRegister(false); setFormErrors({}); }}
             className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
-              !isRegister ? 'bg-[#00F0A8] text-[#090D14]' : 'text-slate-400 hover:text-white'
+              !isRegister ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             Iniciar Sesión
@@ -167,7 +167,7 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
             type="button"
             onClick={() => { setIsRegister(true); setFormErrors({}); }}
             className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
-              isRegister ? 'bg-[#00F0A8] text-[#090D14]' : 'text-slate-400 hover:text-white'
+              isRegister ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             Crear Cuenta
@@ -175,7 +175,7 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
         </div>
 
         {formErrors.general && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center gap-2">
             <AlertCircle size={15} className="shrink-0" />
             <span>{formErrors.general}</span>
           </div>
@@ -184,63 +184,63 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isRegister && (
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
                 Nombre Completo
               </label>
               <div className="relative">
-                <User size={16} className="absolute left-3.5 top-3 text-slate-500" />
+                <User size={16} className="absolute left-3.5 top-3 text-[var(--text-muted)]" />
                 <input
                   type="text"
                   placeholder="ej. Dra. Elena Rostova"
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
-                  className="w-full bg-[#0B0F19] border border-[#1F2937] focus:border-[#00F0A8] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+                  className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-[var(--text-primary)] outline-none"
                   required
                 />
               </div>
               {formErrors.nombre && (
-                <span className="text-[11px] text-rose-400 block mt-1">{formErrors.nombre}</span>
+                <span className="text-[11px] text-rose-500 block mt-1">{formErrors.nombre}</span>
               )}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-              Correo Electrónico (RFC 5322)
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+              Correo Electrónico
             </label>
             <div className="relative">
-              <Mail size={16} className="absolute left-3.5 top-3 text-slate-500" />
+              <Mail size={16} className="absolute left-3.5 top-3 text-[var(--text-muted)]" />
               <input
                 type="email"
-                placeholder="usuario@biotech.fit"
+                placeholder="usuario@ejemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#0B0F19] border border-[#1F2937] focus:border-[#00F0A8] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+                className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-[var(--text-primary)] outline-none"
                 required
               />
             </div>
             {formErrors.email && (
-              <span className="text-[11px] text-rose-400 block mt-1">{formErrors.email}</span>
+              <span className="text-[11px] text-rose-500 block mt-1">{formErrors.email}</span>
             )}
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
               Contraseña
             </label>
             <div className="relative">
-              <Lock size={16} className="absolute left-3.5 top-3 text-slate-500" />
+              <Lock size={16} className="absolute left-3.5 top-3 text-[var(--text-muted)]" />
               <input
                 type="password"
                 placeholder={isRegister ? "Mín. 8 caracteres (mayús, num, símbolo)" : "Tu contraseña"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#0B0F19] border border-[#1F2937] focus:border-[#00F0A8] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none"
+                className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-[var(--text-primary)] outline-none"
                 required
               />
             </div>
             {formErrors.password && (
-              <span className="text-[11px] text-rose-400 block mt-1">{formErrors.password}</span>
+              <span className="text-[11px] text-rose-500 block mt-1">{formErrors.password}</span>
             )}
           </div>
 
@@ -248,55 +248,55 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
             <>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
                     Edad
                   </label>
                   <input
                     type="number"
                     value={edad}
                     onChange={(e) => setEdad(e.target.value)}
-                    className="w-full bg-[#0B0F19] border border-[#1F2937] focus:border-[#00F0A8] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
                     Peso (kg)
                   </label>
                   <input
                     type="text"
                     value={peso}
                     onChange={(e) => setPeso(e.target.value)}
-                    className="w-full bg-[#0B0F19] border border-[#1F2937] focus:border-[#00F0A8] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
                     Altura (cm)
                   </label>
                   <input
                     type="number"
                     value={altura}
                     onChange={(e) => setAltura(e.target.value)}
-                    className="w-full bg-[#0B0F19] border border-[#1F2937] focus:border-[#00F0A8] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Rol de Cuenta (Control RBAC)
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+                  Rol de Cuenta
                 </label>
                 <select
                   value={idRol}
                   onChange={(e) => setIdRol(e.target.value)}
-                  className="w-full bg-[#0B0F19] border border-[#1F2937] focus:border-[#00F0A8] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                  className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none"
                 >
                   <option value="2">2 - Usuario / Paciente</option>
-                  <option value="3">3 - Nutricionista Clínico</option>
-                  <option value="1">1 - Administrador de Sistema</option>
+                  <option value="3">3 - Nutricionista</option>
+                  <option value="1">1 - Administrador</option>
                 </select>
               </div>
             </>
@@ -305,10 +305,10 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 rounded-2xl bg-[#00F0A8] hover:bg-[#10B981] disabled:opacity-50 text-[#090D14] text-xs font-black shadow-lg shadow-[#00F0A8]/20 flex items-center justify-center gap-2 transition"
+            className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 text-xs font-extrabold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition"
           >
             {loading ? (
-              <div className="w-4 h-4 rounded-full border-2 border-[#090D14] border-t-transparent animate-spin" />
+              <div className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
             ) : (
               <>
                 {isRegister ? 'Registrar y Autenticar' : 'Iniciar Sesión'} <ArrowRight size={15} />
