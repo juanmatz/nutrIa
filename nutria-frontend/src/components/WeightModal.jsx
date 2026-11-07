@@ -1,16 +1,36 @@
 import React, { useState } from 'react';
-import { X, Scale, Check, AlertCircle } from 'lucide-react';
+import { X, Scale, Check, AlertCircle, Flame, Sparkles } from 'lucide-react';
 import { validateWeight, validateHeight } from '../utils/validation';
 
-export default function WeightModal({ isOpen, onClose, currentWeight, currentHeight, onSave }) {
+const GOAL_OPTIONS = [
+  'Mantenimiento Saludable',
+  'Pérdida de Grasa & Energía',
+  'Hipertrofia Limpia & Tonificación Magra',
+  'Bienestar y Alimentación Balanceada'
+];
+
+export default function WeightModal({
+  isOpen,
+  onClose,
+  currentWeight,
+  currentHeight,
+  currentTargetCalories,
+  currentGoal,
+  onSave
+}) {
   const [weight, setWeight] = useState(currentWeight || 63.8);
   const [height, setHeight] = useState(currentHeight || 168);
+  const [targetCalories, setTargetCalories] = useState(currentTargetCalories || 2150);
+  const [goal, setGoal] = useState(currentGoal || GOAL_OPTIONS[0]);
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
 
-  const heightM = (parseFloat(height) || 168) / 100;
-  const imc = heightM > 0 ? ((parseFloat(weight) || 63.8) / (heightM * heightM)).toFixed(1) : 0;
+  const weightNum = parseFloat(weight) || 63.8;
+  const heightNum = parseFloat(height) || 168;
+  const heightM = heightNum / 100;
+  const imc = heightM > 0 ? (weightNum / (heightM * heightM)).toFixed(1) : 0;
+  const suggestedCalories = Math.round((10 * weightNum + 6.25 * heightNum - 5 * 26 - 80) * 1.5);
 
   const getStatus = (val) => {
     if (val < 18.5) return { text: "Bajo Peso", color: "text-amber-500 border-amber-500/40 bg-amber-500/10" };
@@ -37,7 +57,19 @@ export default function WeightModal({ isOpen, onClose, currentWeight, currentHei
       return;
     }
 
-    onSave({ weight: weightCheck.value, height: heightCheck.value, imc: Number(imc) });
+    const calNum = parseInt(targetCalories, 10);
+    if (isNaN(calNum) || calNum < 500 || calNum > 10000) {
+      setErrorMsg('La meta diaria debe estar entre 500 y 10,000 kcal.');
+      return;
+    }
+
+    onSave({
+      weight: weightCheck.value,
+      height: heightCheck.value,
+      imc: Number(imc),
+      targetCalories: calNum,
+      goal: goal || GOAL_OPTIONS[0]
+    });
     onClose();
   };
 
@@ -63,10 +95,10 @@ export default function WeightModal({ isOpen, onClose, currentWeight, currentHei
           </div>
           <div>
             <h2 id="weight-modal-title" className="text-lg font-bold text-[var(--text-primary)]">
-              Actualizar Peso y Altura
+              Medidas y Meta Diaria
             </h2>
             <p className="text-xs text-[var(--text-secondary)]">
-              Mantén tus datos al día para calcular tus necesidades calóricas.
+              Personaliza tu peso, estatura, objetivo y meta de calorías.
             </p>
           </div>
         </div>
@@ -111,6 +143,53 @@ export default function WeightModal({ isOpen, onClose, currentWeight, currentHei
             </div>
           </div>
 
+          {/* Meta Diaria de Calorías */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="calories-goal-input" className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                <Flame size={14} className="text-emerald-500" />
+                Meta Diaria de Calorías (kcal)
+              </label>
+              <button
+                type="button"
+                onClick={() => setTargetCalories(suggestedCalories)}
+                className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+              >
+                <Sparkles size={11} /> Sugerido: {suggestedCalories} kcal
+              </button>
+            </div>
+            <input
+              id="calories-goal-input"
+              type="number"
+              step="10"
+              min="500"
+              max="10000"
+              value={targetCalories}
+              onChange={(e) => setTargetCalories(e.target.value)}
+              className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2.5 text-base font-bold text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-emerald-400"
+              required
+            />
+          </div>
+
+          {/* Objetivo */}
+          <div>
+            <label htmlFor="goal-select" className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
+              Tu Objetivo Principal
+            </label>
+            <select
+              id="goal-select"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2.5 text-xs font-semibold text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-emerald-400"
+            >
+              {GOAL_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Tarjeta de cálculo en vivo de IMC */}
           <div className="bg-[var(--chip-bg)] border border-[var(--chip-border)] rounded-2xl p-4 flex items-center justify-between">
             <div>
@@ -132,7 +211,7 @@ export default function WeightModal({ isOpen, onClose, currentWeight, currentHei
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-extrabold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition"
+              className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-extrabold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition"
             >
               <Check size={16} /> Guardar
             </button>

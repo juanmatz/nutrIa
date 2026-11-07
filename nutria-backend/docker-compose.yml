@@ -26,16 +26,23 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-production-ready-key}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,api}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       DB_NAME: ${DB_NAME:-nutria}
       DB_USER: ${DB_USER:-nutria}
       DB_PASSWORD: ${DB_PASSWORD:-nutriapassword2026}
       DB_HOST: db
       DB_PORT: 5432
+      JWT_ACCESS_TTL_DAYS: ${JWT_ACCESS_TTL_DAYS:-1}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-nvidia/nemotron-3-ultra-550b-a55b:free}
     ports:
       - "${DJANGO_PORT:-3000}:3000"
     command: >

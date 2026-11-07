@@ -1,6 +1,6 @@
 /**
  * NutrIA - Utilidades de Validación Defensiva de Formularios
- * Cumple con estándares clínicos y de seguridad OWASP:
+ * Cumple con estándares de validación y seguridad OWASP:
  * - Sanitización de scripts/HTML
  * - RFC 5322 para correos electrónicos
  * - Complejidad criptográfica de contraseñas
@@ -103,7 +103,7 @@ export function validateWeight(rawWeight) {
     return { isValid: false, error: 'El peso ingresado no es un número válido.' };
   }
   if (num < 30 || num > 300) {
-    return { isValid: false, error: 'El peso debe situarse dentro de límites clínicos plausibles (30 kg a 300 kg).' };
+    return { isValid: false, error: 'El peso debe situarse dentro de un rango válido (30 kg a 300 kg).' };
   }
   return { isValid: true, value: Number(num.toFixed(2)) };
 }

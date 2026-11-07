@@ -40,19 +40,20 @@ function AppContent() {
     }, 4500);
   };
 
-  const handleSaveWeight = ({ weight, height, imc }) => {
+  const handleSaveWeight = ({ weight, height, imc, targetCalories, goal }) => {
     const newBmr = Math.round(10 * weight + 6.25 * height - 5 * (user?.edad || 26) - 161);
-    const newTdee = Math.round(newBmr * 1.55);
+    const finalCalories = Number(targetCalories) || Math.round(newBmr * 1.55);
 
     updateProfile({
       peso: weight,
       altura: height,
       imc,
       metabolismo_base: newBmr,
-      calorias_diarias: newTdee
+      calorias_diarias: finalCalories,
+      ...(goal ? { objetivo: goal } : {})
     });
 
-    showToast(`✓ Datos guardados: ${weight} kg · IMC ${imc} kg/m².`);
+    showToast(`✓ Guardado: Meta ${finalCalories} kcal · ${weight} kg · IMC ${imc} kg/m².`);
   };
 
   const handleAddMeal = (newMeal) => {
@@ -76,6 +77,7 @@ function AppContent() {
     tdee: user?.calorias_diarias || 2150,
     bmr: user?.metabolismo_base || 1410,
     targetCalories: user?.calorias_diarias || 2150,
+    goal: user?.objetivo || 'Mantenimiento Saludable',
   };
 
   return (
@@ -121,6 +123,8 @@ function AppContent() {
 
           {activeTab === 'chat' && (
             <ChatView
+              key={`chat-${user?.id_usuario || 'guest'}`}
+              userId={user?.id_usuario || 'guest'}
               userMetrics={metricsForComponents}
               onUpdateMetrics={handleUpdateMetricsFromChat}
               onShowToast={showToast}
@@ -186,10 +190,13 @@ function AppContent() {
 
       {/* Modales Globales */}
       <WeightModal
+        key={`weight-modal-${isWeightModalOpen}-${metricsForComponents.targetCalories}-${metricsForComponents.weight}`}
         isOpen={isWeightModalOpen}
         onClose={() => setIsWeightModalOpen(false)}
         currentWeight={metricsForComponents.weight}
         currentHeight={metricsForComponents.height}
+        currentTargetCalories={metricsForComponents.targetCalories}
+        currentGoal={user?.objetivo}
         onSave={handleSaveWeight}
       />
 

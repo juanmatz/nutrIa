@@ -10,7 +10,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Rol, Usuario
+from core.models import Alergia, Comida, Rol, Usuario
 
 
 class NutriaBotChatSmokeTests(TestCase):
@@ -111,7 +111,7 @@ class NutriaBotChatSmokeTests(TestCase):
 
         with patch.dict(os.environ, {
             'OPENROUTER_API_KEY': 'sk-or-v1-fake-integration-key',
-            'OPENROUTER_MODEL': 'deepseek/deepseek-chat'
+            'OPENROUTER_MODEL': 'nvidia/nemotron-3-ultra-550b-a55b:free'
         }, clear=False):
             payload = {
                 'message': 'Explica la distribución de mis macronutrientes para hipertrofia.'
@@ -119,7 +119,7 @@ class NutriaBotChatSmokeTests(TestCase):
             response = self.client.post('/api/chat', payload, format='json')
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertFalse(response.data.get('mock'))
-            self.assertEqual(response.data.get('model'), 'deepseek/deepseek-chat')
+            self.assertEqual(response.data.get('model'), 'nvidia/nemotron-3-ultra-550b-a55b:free')
             self.assertIn('Respuesta en vivo simulada desde OpenRouter', response.data.get('reply', ''))
 
             # Verificamos que urllib.request.urlopen fue invocado con la URL y headers correctos
@@ -168,15 +168,29 @@ class NutriaBotChatSmokeTests(TestCase):
     def test_chatbot_authenticated_user_profile_extraction(self):
         """
         R2: Si la petición está autenticada con JWT, extrae los biomarcadores
-        reales del usuario en la base de datos (peso, altura, TDEE, objetivo).
+        reales del usuario en la base de datos (peso, altura, TDEE, objetivo),
+        así como sus alergias registradas y calorías consumidas hoy.
         """
+        Alergia.objects.create(usuario=self.usuario, nombre='Gluten', reemplazos='Arroz y quinoa')
+        Comida.objects.create(
+            usuario=self.usuario,
+            tipo='Desayuno',
+            nombre='Avena con claras',
+            calorias=450.0,
+            completado=True
+        )
         self.client.force_authenticate(user=self.usuario)
-        with patch.dict(os.environ, {'OPENROUTER_API_KEY': ''}, clear=False):
+        with patch.dict(os.environ, {'OPENROUTER_API_KEY': '', 'OPENROUTER_MODEL': ''}, clear=False):
             payload = {
-                'message': 'Dame una recomendación para mi objetivo.'
+                'message': 'Dame una recomendación para mi desayuno.'
             }
             response = self.client.post('/api/chat', payload, format='json')
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data.get('model'), 'nvidia/nemotron-3-ultra-550b-a55b:free')
+            self.assertNotIn('Tortilla Bio-Clean', response.data.get('reply', ''))
             context = response.data.get('metabolic_context', {})
             self.assertEqual(context.get('objetivo'), 'Hipertrofia Limpia & Tonificación Magra')
             self.assertEqual(context.get('tdee'), 2150)
+            self.assertIn('Sin Gluten', context.get('alérgenos_bloqueados', []))
+            self.assertEqual(context.get('calorias_consumidas_hoy'), 450.0)
+            self.assertEqual(context.get('calorias_restantes'), 1700)

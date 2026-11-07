@@ -30,7 +30,7 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
   const handleDemoSwitch = (role) => {
     switchDemoUser(role);
     if (onShowToast) {
-      onShowToast(role === 'admin' ? "✓ Sesión activa como Dr. Roberto (Admin)" : "✓ Sesión activa como Camila Torres (Usuario)");
+      onShowToast(role === 'admin' ? "✓ Sesión activa como Roberto Méndez (Admin)" : "✓ Sesión activa como Camila Torres (Usuario)");
     }
     onClose();
   };
@@ -79,21 +79,25 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
 
     const ageCheck = validateAge(edad);
     if (!ageCheck.isValid) {
-      setFormErrors(prev => ({ ...prev, edad: ageCheck.error }));
+      setFormErrors(prev => ({ ...prev, edad: ageCheck.error, general: ageCheck.error }));
       return;
     }
 
     const weightCheck = validateWeight(peso);
     if (!weightCheck.isValid) {
-      setFormErrors(prev => ({ ...prev, peso: weightCheck.error }));
+      setFormErrors(prev => ({ ...prev, peso: weightCheck.error, general: weightCheck.error }));
       return;
     }
 
     const heightCheck = validateHeight(altura);
     if (!heightCheck.isValid) {
-      setFormErrors(prev => ({ ...prev, altura: heightCheck.error }));
+      setFormErrors(prev => ({ ...prev, altura: heightCheck.error, general: heightCheck.error }));
       return;
     }
+
+    // Cálculo dinámico de calorías basales y TDEE estimado (Mifflin-St Jeor)
+    const bmr = Math.round(10 * weightCheck.value + 6.25 * heightCheck.value - 5 * ageCheck.value + 5);
+    const tdee = Math.round(bmr * 1.4);
 
     setLoading(true);
     const regRes = await register({
@@ -104,8 +108,8 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
       edad: ageCheck.value,
       peso: weightCheck.value,
       altura: heightCheck.value,
-      id_rol: parseInt(idRol, 10),
-      calorias_diarias: 2150
+      id_rol: parseInt(idRol, 10) || 2,
+      calorias_diarias: tdee || 2150
     });
     setLoading(false);
 
@@ -139,15 +143,15 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
               className="p-2.5 rounded-xl bg-[var(--bg-card)] border border-emerald-500/40 hover:border-emerald-500 text-left text-xs transition group shadow-sm"
             >
               <div className="font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 truncate">Camila Torres</div>
-              <div className="text-[10px] text-[var(--text-secondary)] font-medium">Usuario / Paciente</div>
+              <div className="text-[10px] text-[var(--text-secondary)] font-medium">Usuario</div>
             </button>
             <button
               type="button"
               onClick={() => handleDemoSwitch('admin')}
               className="p-2.5 rounded-xl bg-[var(--bg-card)] border border-emerald-500/40 hover:border-emerald-500 text-left text-xs transition group shadow-sm"
             >
-              <div className="font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 truncate">Dr. Roberto (Admin)</div>
-              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Administrador (1)</div>
+              <div className="font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 truncate">Roberto Méndez</div>
+              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Administrador</div>
             </button>
           </div>
         </div>
@@ -175,9 +179,22 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
         </div>
 
         {formErrors.general && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center gap-2">
-            <AlertCircle size={15} className="shrink-0" />
-            <span>{formErrors.general}</span>
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center justify-between gap-2 animate-in fade-in"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle size={15} className="shrink-0" />
+              <span>{formErrors.general}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFormErrors(prev => ({ ...prev, general: null }))}
+              className="text-rose-400 hover:text-rose-600 text-xs p-1"
+            >
+              ×
+            </button>
           </div>
         )}
 
@@ -191,9 +208,12 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
                 <User size={16} className="absolute left-3.5 top-3 text-[var(--text-muted)]" />
                 <input
                   type="text"
-                  placeholder="ej. Dra. Elena Rostova"
+                  placeholder="ej. Elena Rostova"
                   value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
+                  onChange={(e) => {
+                    setNombre(e.target.value);
+                    if (formErrors.nombre || formErrors.general) setFormErrors(prev => ({ ...prev, nombre: null, general: null }));
+                  }}
                   className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-[var(--text-primary)] outline-none"
                   required
                 />
@@ -214,7 +234,10 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
                 type="email"
                 placeholder="usuario@ejemplo.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (formErrors.email || formErrors.general) setFormErrors(prev => ({ ...prev, email: null, general: null }));
+                }}
                 className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-[var(--text-primary)] outline-none"
                 required
               />
@@ -234,7 +257,10 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
                 type="password"
                 placeholder={isRegister ? "Mín. 8 caracteres (mayús, num, símbolo)" : "Tu contraseña"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (formErrors.password || formErrors.general) setFormErrors(prev => ({ ...prev, password: null, general: null }));
+                }}
                 className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-[var(--text-primary)] outline-none"
                 required
               />
@@ -254,10 +280,18 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
                   <input
                     type="number"
                     value={edad}
-                    onChange={(e) => setEdad(e.target.value)}
-                    className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none"
+                    onChange={(e) => {
+                      setEdad(e.target.value);
+                      if (formErrors.edad || formErrors.general) setFormErrors(prev => ({ ...prev, edad: null, general: null }));
+                    }}
+                    className={`w-full bg-[var(--bg-app)] border rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none ${
+                      formErrors.edad ? 'border-rose-500' : 'border-[var(--border-card)] focus:border-emerald-500'
+                    }`}
                     required
                   />
+                  {formErrors.edad && (
+                    <span className="text-[10px] text-rose-500 block mt-1 leading-tight">{formErrors.edad}</span>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
@@ -266,10 +300,18 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
                   <input
                     type="text"
                     value={peso}
-                    onChange={(e) => setPeso(e.target.value)}
-                    className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none"
+                    onChange={(e) => {
+                      setPeso(e.target.value);
+                      if (formErrors.peso || formErrors.general) setFormErrors(prev => ({ ...prev, peso: null, general: null }));
+                    }}
+                    className={`w-full bg-[var(--bg-app)] border rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none ${
+                      formErrors.peso ? 'border-rose-500' : 'border-[var(--border-card)] focus:border-emerald-500'
+                    }`}
                     required
                   />
+                  {formErrors.peso && (
+                    <span className="text-[10px] text-rose-500 block mt-1 leading-tight">{formErrors.peso}</span>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
@@ -278,10 +320,18 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
                   <input
                     type="number"
                     value={altura}
-                    onChange={(e) => setAltura(e.target.value)}
-                    className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none"
+                    onChange={(e) => {
+                      setAltura(e.target.value);
+                      if (formErrors.altura || formErrors.general) setFormErrors(prev => ({ ...prev, altura: null, general: null }));
+                    }}
+                    className={`w-full bg-[var(--bg-app)] border rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none ${
+                      formErrors.altura ? 'border-rose-500' : 'border-[var(--border-card)] focus:border-emerald-500'
+                    }`}
                     required
                   />
+                  {formErrors.altura && (
+                    <span className="text-[10px] text-rose-500 block mt-1 leading-tight">{formErrors.altura}</span>
+                  )}
                 </div>
               </div>
 
@@ -294,9 +344,7 @@ export default function AuthModal({ isOpen, onClose, onShowToast }) {
                   onChange={(e) => setIdRol(e.target.value)}
                   className="w-full bg-[var(--bg-app)] border border-[var(--border-card)] focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] outline-none"
                 >
-                  <option value="2">2 - Usuario / Paciente</option>
-                  <option value="3">3 - Nutricionista</option>
-                  <option value="1">1 - Administrador</option>
+                  <option value="2">Usuario</option>
                 </select>
               </div>
             </>

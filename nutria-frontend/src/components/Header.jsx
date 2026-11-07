@@ -71,12 +71,20 @@ export default function Header({ userMetrics, onOpenWeightModal, onToggleMobileM
             <span>{headerDateStr}</span>
           </div>
 
-          {/* Meta diaria */}
-          <div className="px-3.5 py-1.5 rounded-full bg-[var(--chip-bg)] border border-[var(--chip-border)] flex items-center gap-2 text-xs font-medium text-[var(--chip-text)]">
+          {/* Meta diaria (editable) */}
+          <button
+            onClick={onOpenWeightModal}
+            aria-label="Cambiar meta diaria de calorías"
+            className="px-3.5 py-1.5 rounded-full bg-[var(--chip-bg)] border border-[var(--chip-border)] hover:border-emerald-400/60 flex items-center gap-2 text-xs font-medium text-[var(--chip-text)] transition group focus:outline-none focus:ring-1 focus:ring-emerald-400 shadow-sm"
+            title="Haz clic para cambiar tu meta diaria de calorías"
+          >
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span className="opacity-90 hidden sm:inline">Tu meta:</span>
             <span className="font-extrabold text-[var(--text-primary)]">{userMetrics?.targetCalories || 2150} kcal</span>
-          </div>
+            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold underline ml-0.5">
+              (Editar)
+            </span>
+          </button>
 
           {/* Peso / IMC saludable */}
           <button
@@ -217,7 +225,7 @@ export default function Header({ userMetrics, onOpenWeightModal, onToggleMobileM
                   className="w-full text-left p-2 rounded-xl text-xs text-[var(--text-primary)] hover:bg-[var(--bg-card-sub)] transition flex items-center gap-2"
                 >
                   <UserCheck size={14} className="text-emerald-500" />
-                  Mis Medidas
+                  Mis Medidas y Meta
                 </button>
 
                 <button

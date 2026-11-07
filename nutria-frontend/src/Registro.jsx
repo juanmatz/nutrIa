@@ -126,11 +126,12 @@ export default function Registro({ onVolver }) {
         body: JSON.stringify({
           nombre:          form.nombre,
           email:           form.email,
-          contrasena_hash: form.password,  // el backend aplicará bcrypt aquí
+          contrasena:      form.password,
+          contrasena_hash: form.password,
           edad:            form.edad   ? parseInt(form.edad)     : null,
           peso:            form.peso   ? parseFloat(form.peso)   : null,
           altura:          form.altura ? parseFloat(form.altura) : null,
-          id_rol:          1,  // rol Usuario por defecto
+          id_rol:          2,  // rol Usuario por defecto
         }),
       });
 

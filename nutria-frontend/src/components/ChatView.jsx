@@ -3,21 +3,36 @@ import {
   Send,
   MessageCircleHeart,
   Flame,
-  Apple,
   Sparkles,
-  Heart
+  Heart,
+  Trash2
 } from 'lucide-react';
 import { apiService } from '../services/api';
 
-export default function ChatView({ userMetrics, onUpdateMetrics, onShowToast }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'bot',
-      time: 'Ahora',
-      text: '¡Hola! Soy Nutri, tu compañera de alimentación saludable. ¿Qué te gustaría preparar hoy? Puedo darte ideas para tus comidas, sugerirte recetas con lo que tengas en casa o ayudarte a balancear tus platos.'
+const INITIAL_WELCOME_MESSAGE = {
+  id: 1,
+  sender: 'bot',
+  time: 'Ahora',
+  text: '¡Hola! Soy Nutri, tu compañera de alimentación saludable. ¿Qué te gustaría preparar hoy? Puedo darte ideas para tus comidas, sugerirte recetas con lo que tengas en casa o ayudarte a balancear tus platos.'
+};
+
+export default function ChatView({ userId = 'guest', userMetrics, onShowToast }) {
+  const storageKey = `nutria_chat_history_${userId}`;
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Fallback a mensaje inicial si falla lectura de localStorage
     }
-  ]);
+    return [INITIAL_WELCOME_MESSAGE];
+  });
 
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -32,6 +47,33 @@ export default function ChatView({ userMetrics, onUpdateMetrics, onShowToast }) 
     scrollToBottom();
   }, [messages, isTyping]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch {
+      // Ignorar errores de cuota en localStorage
+    }
+  }, [messages, storageKey]);
+
+  const handleClearChat = () => {
+    const resetMessages = [
+      {
+        ...INITIAL_WELCOME_MESSAGE,
+        id: Date.now(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ];
+    setMessages(resetMessages);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(resetMessages));
+    } catch {
+      // Ignorar
+    }
+    if (onShowToast) {
+      onShowToast('✓ Conversación reiniciada.');
+    }
+  };
+
   const handleSendMessage = async (customText) => {
     const textToSend = typeof customText === 'string' ? customText : inputMessage;
     if (!textToSend || !textToSend.trim() || isTyping) return;
@@ -45,28 +87,41 @@ export default function ChatView({ userMetrics, onUpdateMetrics, onShowToast }) 
       text: trimmed
     };
 
+    const priorHistory = messages
+      .filter((m) => m.id !== 1 && !m.isError && m.text)
+      .slice(-12)
+      .map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text
+      }));
+
     setMessages(prev => [...prev, userMsg]);
     setInputMessage('');
     setIsTyping(true);
 
     try {
       const res = await apiService.sendChatMessage(trimmed, {
+        history: priorHistory,
         metrics_override: {
           peso: userMetrics?.weight || 63.8,
           altura: userMetrics?.height || 168,
           tdee: userMetrics?.targetCalories || 2150,
-          imc: userMetrics?.imc || 22.4
+          imc: userMetrics?.imc || 22.4,
+          objetivo: userMetrics?.goal || 'Mantenimiento Saludable',
+          scheme: userMetrics?.dietScheme || 'Alta en Proteína'
         }
       });
 
-      if (res && res.data && res.data.reply) {
+      if (res && res.ok && res.data && res.data.reply) {
         setMessages(prev => [
           ...prev,
           {
             id: Date.now() + 1,
             sender: 'bot',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            text: res.data.reply
+            text: res.data.reply,
+            model: res.data.model,
+            isContingency: Boolean(res.data.mock)
           }
         ]);
       } else {
@@ -76,7 +131,8 @@ export default function ChatView({ userMetrics, onUpdateMetrics, onShowToast }) 
             id: Date.now() + 1,
             sender: 'bot',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            text: '¡Con gusto te ayudo! Una regla de oro para un plato balanceado es: la mitad del plato con vegetales frescos, un cuarto con proteína magra y el otro cuarto con carbohidratos saludables.'
+            text: `⚠️ ${res?.error || 'No se pudo obtener respuesta de NutriaBot. Verifica que el backend esté en ejecución.'}`,
+            isError: true
           }
         ]);
       }
@@ -88,7 +144,8 @@ export default function ChatView({ userMetrics, onUpdateMetrics, onShowToast }) 
           id: Date.now() + 1,
           sender: 'bot',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          text: 'Para tu meta diaria, te recomiendo una comida con proteína (como pollo o huevos), verduras salteadas y una porción de arroz o patata al vapor. ¿Te gustaría una receta paso a paso?'
+          text: '⚠️ Error de conexión con el servidor de NutriaBot. Por favor intenta de nuevo en unos segundos.',
+          isError: true
         }
       ]);
     } finally {
@@ -122,10 +179,24 @@ export default function ChatView({ userMetrics, onUpdateMetrics, onShowToast }) 
           </div>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border-card)] px-3 py-1.5 rounded-xl text-xs shadow-sm">
-          <Flame size={14} className="text-emerald-500" />
-          <span className="text-[var(--text-secondary)]">Tu meta:</span>
-          <span className="font-bold text-[var(--text-primary)]">{userMetrics?.targetCalories || 2150} kcal</span>
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border-card)] px-3 py-1.5 rounded-xl text-xs shadow-sm">
+            <Flame size={14} className="text-emerald-500" />
+            <span className="text-[var(--text-secondary)]">Tu meta:</span>
+            <span className="font-bold text-[var(--text-primary)]">{userMetrics?.targetCalories || 2150} kcal</span>
+          </div>
+
+          {messages.length > 1 && (
+            <button
+              type="button"
+              onClick={handleClearChat}
+              title="Limpiar conversación"
+              className="flex items-center gap-1.5 bg-[var(--bg-card)] hover:bg-rose-500/10 border border-[var(--border-card)] hover:border-rose-500/40 text-[var(--text-secondary)] hover:text-rose-400 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-sm"
+            >
+              <Trash2 size={14} />
+              <span className="hidden md:inline">Limpiar chat</span>
+            </button>
+          )}
         </div>
       </div>
 

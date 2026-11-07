@@ -2,7 +2,7 @@
 Clases de permisos RBAC para NutrIA API.
 Jerarquía de roles:
 - 1: Administrador
-- 2: Usuario / Paciente
+- 2: Usuario
 - 3: Nutricionista
 """
 

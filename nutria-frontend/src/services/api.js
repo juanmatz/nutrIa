@@ -193,12 +193,12 @@ const INITIAL_ALIMENTOS = [
 const INITIAL_USUARIOS = [
   {
     id_usuario: 1,
-    nombre: "Dr. Roberto Méndez (Admin)",
-    email: "admin@biotech.fit",
+    nombre: "Roberto Méndez (Admin)",
+    email: "admin@nutria.fit",
     edad: 38,
     peso: 76.5,
     altura: 178,
-    objetivo: "Supervisión Clínica & Rendimiento",
+    objetivo: "Bienestar & Rendimiento",
     calorias_diarias: 2400,
     id_rol: 1,
     rol_nombre: "Administrador",
@@ -207,7 +207,7 @@ const INITIAL_USUARIOS = [
   {
     id_usuario: 2,
     nombre: "Camila Torres",
-    email: "camila.torres@biotech.fit",
+    email: "camila.torres@nutria.fit",
     edad: 26,
     peso: 63.8,
     altura: 168,
@@ -219,12 +219,12 @@ const INITIAL_USUARIOS = [
   },
   {
     id_usuario: 3,
-    nombre: "Lic. Valeria Silva (Nutrición)",
-    email: "valeria.nutri@biotech.fit",
+    nombre: "Valeria Silva",
+    email: "valeria.nutri@nutria.fit",
     edad: 32,
     peso: 59.0,
     altura: 165,
-    objetivo: "Metabolismo Balanceado",
+    objetivo: "Alimentación Balanceada",
     calorias_diarias: 1950,
     id_rol: 3,
     rol_nombre: "Nutricionista",
@@ -232,12 +232,12 @@ const INITIAL_USUARIOS = [
   },
   {
     id_usuario: 4,
-    nombre: "Lucas Mendoza (Atleta)",
+    nombre: "Lucas Mendoza",
     email: "lucas.mendoza@fitness.io",
     edad: 24,
     peso: 82.0,
     altura: 182,
-    objetivo: "Pérdida de Grasa & Potencia",
+    objetivo: "Pérdida de Grasa & Energía",
     calorias_diarias: 2300,
     id_rol: 2,
     rol_nombre: "Usuario",
@@ -276,6 +276,46 @@ function getStoredUsuarios() {
 function saveStoredUsuarios(list) {
   try {
     localStorage.setItem('nutria_usuarios', JSON.stringify(list));
+  } catch {
+    // fallback
+  }
+}
+
+// Alergias base y storage helpers
+export const INITIAL_ALERGIAS = [
+  {
+    id: 1,
+    id_alergia: 1,
+    nombre: "Mariscos y Crustáceos",
+    reemplazos: "Pechuga de pavo, claras de huevo, salmón o legumbres."
+  },
+  {
+    id: 2,
+    id_alergia: 2,
+    nombre: "Lactosa y Derivados Lácteos",
+    reemplazos: "Bebida de almendras o avena, tofu firme, yogur de coco."
+  },
+  {
+    id: 3,
+    id_alergia: 3,
+    nombre: "Frutos Secos",
+    reemplazos: "Semillas de girasol, chía, lino y semillas de calabaza."
+  }
+];
+
+export function getStoredAlergias() {
+  try {
+    const raw = localStorage.getItem('nutria_alergias');
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // fallback
+  }
+  return INITIAL_ALERGIAS;
+}
+
+export function saveStoredAlergias(list) {
+  try {
+    localStorage.setItem('nutria_alergias', JSON.stringify(list));
   } catch {
     // fallback
   }
@@ -333,7 +373,7 @@ export const apiService = {
       badge: alimentoData.badge || "Añadido por Admin",
       prioridad: alimentoData.prioridad || "priorizar",
       emoji: alimentoData.emoji || "🥗",
-      detalles: alimentoData.detalles || "Alimento calibrado en el catálogo clínico."
+      detalles: alimentoData.detalles || "Alimento registrado en el catálogo nutricional."
     };
 
     const updated = [newAlimento, ...current];
@@ -425,20 +465,34 @@ export const apiService = {
   },
 
   /**
-   * Registro de nuevo usuario
+   * Registro de nuevo usuario (POST /api/auth/register con fallback a /api/usuarios)
    */
   async register(registerData) {
-    const res = await apiRequest('/usuarios', {
+    let res = await apiRequest('/auth/register', {
       method: 'POST',
       skipAuth: true,
       body: registerData
     });
 
+    if (!res.ok && res.status === 404) {
+      res = await apiRequest('/usuarios', {
+        method: 'POST',
+        skipAuth: true,
+        body: registerData
+      });
+    }
+
     if (res.ok && res.data) {
       if (res.data.access) {
         tokenStorage.setTokens(res.data.access, res.data.refresh);
       }
-      return { ok: true, user: res.data.usuario, message: res.data.mensaje };
+      return {
+        ok: true,
+        user: res.data.usuario,
+        access: res.data.access,
+        refresh: res.data.refresh,
+        message: res.data.mensaje
+      };
     }
 
     return { ok: false, error: res.error || 'Error al crear la cuenta.' };
@@ -490,35 +544,233 @@ export const apiService = {
    * POST /api/chat
    */
   /**
-   * Envío de mensaje a NutriaBot AI
-   * Intenta primero backend /api/chat; si falla o no está disponible, conmuta a OpenRouter directo o fallback inteligente.
+   * Envío de mensaje a NutriaBot AI a través del proxy seguro del backend.
    * POST /api/chat
    */
   async sendChatMessage(message, context = {}) {
-    try {
-      const backendRes = await apiRequest('/chat', {
-        method: 'POST',
-        body: {
-          message,
-          ...context
-        }
-      });
-
-      if (backendRes && backendRes.ok && backendRes.data && backendRes.data.reply) {
-        return backendRes;
+    const backendRes = await apiRequest('/chat', {
+      method: 'POST',
+      body: {
+        message,
+        ...context
       }
-    } catch (e) {
-      console.warn('Backend /api/chat no disponible, usando fallback directo:', e);
+    });
+
+    if (backendRes && backendRes.ok && backendRes.data && backendRes.data.reply) {
+      return backendRes;
     }
 
-    // Fallback 1: Llamada directa a OpenRouter desde cliente
-    const directRes = await callOpenRouterDirect(message, context);
-    if (directRes) {
-      return directRes;
+    return {
+      ok: false,
+      status: backendRes?.status || 503,
+      error: backendRes?.error || 'No fue posible conectar con NutriaBot en este momento.'
+    };
+  },
+
+  // ============================================================
+  // COMIDAS (MILESTONE 3: PARIDAD CON BACKEND)
+  // ============================================================
+
+  /**
+   * Obtiene las comidas del usuario autenticado para una fecha dada (default: hoy).
+   * GET /api/comidas?fecha=YYYY-MM-DD
+   */
+  async getComidas(fecha = null) {
+    const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : '';
+    const res = await apiRequest(`/comidas${query}`);
+    if (res.ok && Array.isArray(res.data)) {
+      return { ok: true, data: res.data };
+    }
+    return { ok: false, data: [], error: res.error || 'Error al obtener comidas' };
+  },
+
+  /**
+   * Registra una nueva comida en el backend.
+   * POST /api/comidas
+   */
+  async createComida(comidaData) {
+    const res = await apiRequest('/comidas', {
+      method: 'POST',
+      body: comidaData
+    });
+    if (res.ok && res.data) {
+      return { ok: true, comida: res.data.comida || res.data };
+    }
+    return { ok: false, error: res.error || 'Error al registrar comida' };
+  },
+
+  /**
+   * Actualiza parcialmente una comida (ej: alternar completado).
+   * PATCH /api/comidas/:id
+   */
+  async updateComida(id, patchData) {
+    const res = await apiRequest(`/comidas/${id}`, {
+      method: 'PATCH',
+      body: patchData
+    });
+    if (res.ok && res.data) {
+      return { ok: true, comida: res.data.comida || res.data };
+    }
+    return { ok: false, error: res.error || 'Error al actualizar comida' };
+  },
+
+  /**
+   * Elimina una comida del plan diario.
+   * DELETE /api/comidas/:id
+   */
+  async deleteComida(id) {
+    const res = await apiRequest(`/comidas/${id}`, {
+      method: 'DELETE'
+    });
+    return { ok: res.ok, error: res.error };
+  },
+
+  // ============================================================
+  // REGISTRO DE AGUA (MILESTONE 3: PARIDAD CON BACKEND)
+  // ============================================================
+
+  /**
+   * Obtiene el registro de hidratación de hoy para el usuario autenticado.
+   * GET /api/agua/hoy
+   */
+  async getAguaHoy() {
+    const res = await apiRequest('/agua/hoy');
+    if (res.ok && res.data) {
+      return { ok: true, data: res.data };
+    }
+    return { ok: false, data: { cantidad_ml: 0, meta_ml: 2000 }, error: res.error };
+  },
+
+  /**
+   * Suma una toma de agua (por defecto 250 ml).
+   * POST /api/agua
+   */
+  async addAgua(cantidad_ml = 250) {
+    const res = await apiRequest('/agua', {
+      method: 'POST',
+      body: { cantidad_ml: Number(cantidad_ml) || 0 }
+    });
+    if (res.ok && res.data) {
+      return { ok: true, data: res.data };
+    }
+    return { ok: false, error: res.error || 'Error al registrar agua' };
+  },
+
+  /**
+   * Reinicia el contador de agua del día a 0 ml.
+   * POST /api/agua con { reset: true, cantidad_ml: 0 }
+   */
+  async resetAgua() {
+    const res = await apiRequest('/agua', {
+      method: 'POST',
+      body: { reset: true, cantidad_ml: 0 }
+    });
+    if (res.ok && res.data) {
+      return { ok: true, data: res.data };
+    }
+    return { ok: false, error: res.error || 'Error al reiniciar agua' };
+  },
+
+  /**
+   * Ajusta el total acumulado de agua a una cantidad fija (para restar o calibrar).
+   */
+  async setAguaTotal(total_ml) {
+    const target = Math.max(0, Math.min(10000, Number(total_ml) || 0));
+    const resetRes = await apiRequest('/agua', {
+      method: 'POST',
+      body: { reset: true, cantidad_ml: 0 }
+    });
+    if (!resetRes.ok) return resetRes;
+    if (target === 0) return { ok: true, data: resetRes.data };
+
+    const addRes = await apiRequest('/agua', {
+      method: 'POST',
+      body: { cantidad_ml: target }
+    });
+    if (addRes.ok && addRes.data) {
+      return { ok: true, data: addRes.data };
+    }
+    return { ok: false, error: addRes.error || 'Error al ajustar agua' };
+  },
+
+  // ============================================================
+  // ALERGIAS (MILESTONE 3: PARIDAD CON BACKEND)
+  // ============================================================
+
+  /**
+   * Obtiene la lista de alergias registradas del usuario autenticado.
+   * GET /api/alergias
+   */
+  async getAlergias() {
+    const res = await apiRequest('/alergias');
+    if (res.ok && Array.isArray(res.data)) {
+      return res.data;
+    }
+    return getStoredAlergias();
+  },
+
+  /**
+   * Registra una nueva alergia o alimento a evitar.
+   * POST /api/alergias
+   */
+  async createAlergia(alergiaData) {
+    const res = await apiRequest('/alergias', {
+      method: 'POST',
+      body: {
+        nombre: String(alergiaData.nombre || '').trim(),
+        reemplazos: String(alergiaData.reemplazos || '').trim()
+      }
+    });
+
+    if (res.ok && res.data) {
+      const created = res.data;
+      const current = getStoredAlergias();
+      const updated = [created, ...current.filter(a => (a.id_alergia || a.id) !== (created.id_alergia || created.id))];
+      saveStoredAlergias(updated);
+      return { ok: true, data: created };
     }
 
-    // Fallback 2: Asistente local contextualizado
-    return generateLocalNutriResponse(message, context);
+    // Fallback reactivo local
+    const current = getStoredAlergias();
+    const newAlergia = {
+      id: Date.now(),
+      id_alergia: Date.now(),
+      nombre: alergiaData.nombre,
+      reemplazos: alergiaData.reemplazos || 'Alternativas saludables sugeridas por el asistente'
+    };
+    saveStoredAlergias([newAlergia, ...current]);
+    return { ok: true, data: newAlergia };
+  },
+
+  /**
+   * Elimina una alergia registrada por id.
+   * DELETE /api/alergias/:id
+   */
+  async deleteAlergia(id_alergia) {
+    const res = await apiRequest(`/alergias/${id_alergia}`, {
+      method: 'DELETE'
+    });
+
+    const current = getStoredAlergias();
+    const updated = current.filter(item => (item.id_alergia || item.id) !== id_alergia);
+    saveStoredAlergias(updated);
+    return { ok: res.ok, updated };
+  },
+
+  // ============================================================
+  // PROGRESO SEMANAL (MILESTONE 3: PARIDAD CON BACKEND)
+  // ============================================================
+
+  /**
+   * Obtiene la adherencia calórica de los últimos 7 días terminando en hoy.
+   * GET /api/progreso/semanal
+   */
+  async getProgresoSemanal() {
+    const res = await apiRequest('/progreso/semanal');
+    if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+      return { ok: true, data: res.data };
+    }
+    return { ok: false, data: [] };
   },
 
   /**
@@ -528,102 +780,3 @@ export const apiService = {
     tokenStorage.clearTokens();
   }
 };
-
-async function callOpenRouterDirect(message, context = {}) {
-  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || '';
-  if (!apiKey || !apiKey.startsWith('sk-or-')) return null;
-
-  const model = import.meta.env.VITE_OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
-  const meta = context.metrics_override || {};
-  const tdee = meta.tdee || 2150;
-  const goal = meta.objetivo || 'Alimentación balanceada';
-  const exclusions = (context.exclusions || []).join(', ') || 'ninguna';
-
-  const systemPrompt = `Eres Nutri, el asistente nutricional amigable, cercano y experto de NutrIA.
-Ayudas al usuario a comer de forma saludable, rica y práctica sin complicaciones.
-- Meta calórica: ${tdee} kcal/día.
-- Objetivo: ${goal}.
-- Alergias o alimentos a evitar: ${exclusions}.
-Pautas:
-- Respuestas breves, ordenadas y motivadoras.
-- Sugiere alimentos reales, fáciles de preparar y apetitosos.
-- Menciona macros aproximados de forma clara si sugieres un plato.
-- Responde siempre en español con un tono humano y natural.`;
-
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://nutria.fit',
-        'X-Title': 'NutrIA App'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 800
-      })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (content) {
-        return {
-          ok: true,
-          status: 200,
-          data: { reply: content, model, source: 'openrouter-direct' }
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('OpenRouter direct call error:', err);
-  }
-  return null;
-}
-
-function generateLocalNutriResponse(message, context = {}) {
-  const meta = context.metrics_override || {};
-  const tdee = meta.tdee || 2150;
-  const goal = meta.objetivo || 'Alimentación balanceada';
-  const lower = (message || '').toLowerCase();
-
-  let reply = "";
-  if (lower.includes('desayuno')) {
-    reply = `¡Hola! Para un **Desayuno Saludable y Energético** (~400 kcal):\n\n` +
-      `• **Opción 1**: Tortilla de 2 huevos con espinacas y 2 tostadas de pan integral con un toque de aceite de oliva.\n` +
-      `• **Opción 2**: Tazón de avena cocida con leche vegetal, canela, rodajas de plátano y semillas de chía.\n\n` +
-      `📊 **Aporte estimado**: ~25g proteínas, 40g carbohidratos, 12g grasas saludables.`;
-  } else if (lower.includes('almuerzo') || lower.includes('comida')) {
-    reply = `Para un **Almuerzo Balanceado y Completo** (~650 kcal):\n\n` +
-      `• **Proteína limpia**: 180g de pechuga de pollo, pavo o tofu a la plancha.\n` +
-      `• **Energía**: 1 taza de arroz integral o quinoa cocida.\n` +
-      `• **Vegetales frescos**: Ensalada abundante de hojas verdes, tomate cherry y pepino.\n\n` +
-      `📊 **Aporte estimado**: ~45g proteínas, 60g carbohidratos, 15g grasas saludables.`;
-  } else if (lower.includes('cena')) {
-    reply = `Para una **Cena Ligera y Nutritiva** (~450 kcal):\n\n` +
-      `• **Plato principal**: Filete de pescado o pollo al horno con espárragos y calabacín a la plancha.\n` +
-      `• **Guarnición**: Media batata al vapor o puré casero.\n` +
-      `• **Ensalada**: Rúcula con vinagre de manzana y aceite de oliva virgen.\n\n` +
-      `📊 **Aporte estimado**: ~35g proteínas, 25g carbohidratos, 10g grasas.`;
-  } else if (lower.includes('merienda') || lower.includes('snack') || lower.includes('colacion') || lower.includes('colación')) {
-    reply = `Para tu **Merienda / Snack** (~220 kcal):\n\n` +
-      `• 1 yogur vegetal con frutos rojos y semillas de calabaza.\n` +
-      `• O bien: 1 manzana en rodajas con una cucharadita de crema de almendras.\n\n` +
-      `📊 Aporte ideal para saciedad y energía sin pesadez.`;
-  } else {
-    reply = `¡Hola! Con tu meta de **${tdee} kcal al día** para **${goal}**, estoy aquí para acompañarte.\n\n` +
-      `Puedo darte ideas para tus comidas de hoy, recetas ricas y rápidas, o cómo distribuir mejor tus macronutrientes. ¿Qué te gustaría consultar?`;
-  }
-
-  return {
-    ok: true,
-    status: 200,
-    data: { reply, model: 'nutria-smart-assistant', source: 'local-fallback' }
-  };
-}

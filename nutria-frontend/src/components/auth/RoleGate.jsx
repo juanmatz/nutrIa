@@ -20,7 +20,7 @@ export default function RoleGate({ allowedRoles = [1], children, fallback = null
         </div>
         <h3 className="text-xl font-bold text-white mb-2">Acceso Denegado (403)</h3>
         <p className="text-xs text-slate-400 leading-relaxed mb-6">
-          Esta vista requiere privilegios de <strong className="text-rose-400">Administrador Clínico</strong>. Tu cuenta actual (<strong className="text-white">{user?.nombre || 'Usuario'}</strong>) tiene asignado el rol de <strong className="text-[#00F0A8]">{user?.rol_nombre || 'Usuario'}</strong>.
+          Esta vista requiere privilegios de <strong className="text-rose-400">Administrador</strong>. Tu cuenta actual (<strong className="text-white">{user?.nombre || 'Usuario'}</strong>) tiene asignado el rol de <strong className="text-[#00F0A8]">{user?.rol_nombre || 'Usuario'}</strong>.
         </p>
         <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-[#090D14] border border-[#1F2937] text-slate-400">
           RBAC Protection Protocol v4.2

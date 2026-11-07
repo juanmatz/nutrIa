@@ -1,153 +1,201 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { apiService } from '../services/api';
+import { tokenStorage } from '../services/apiClient';
+import { useAuth } from './AuthContext';
 
 const MealContext = createContext(null);
 
-const STORAGE_MEALS_KEY = 'nutria_daily_meals';
-const STORAGE_WATER_KEY = 'nutria_water_ml';
-
-const INITIAL_MEALS = [
-  {
-    id: 1,
-    tipo: 'Desayuno',
-    hora: '07:30',
-    nombre: 'Omelette de espinacas con tostadas integrales',
-    items: [
-      { nombre: 'Huevos y claras con espinaca', porcion: '2 huevos + 2 claras', p: 26, c: 4, g: 10 },
-      { nombre: 'Pan integral con aceite de oliva', porcion: '2 rebanadas', p: 6, c: 34, g: 2 }
-    ],
-    calorias: 420,
-    proteinas: 32,
-    carbohidratos: 38,
-    grasas: 12,
-    completado: true
-  },
-  {
-    id: 2,
-    tipo: 'Almuerzo',
-    hora: '13:15',
-    nombre: 'Pechuga a la plancha con quinoa y aguacate',
-    items: [
-      { nombre: 'Pechuga de pollo a la plancha', porcion: '180g', p: 46, c: 0, g: 5 },
-      { nombre: 'Quinoa cocida', porcion: '1 taza', p: 8, c: 45, g: 3 },
-      { nombre: 'Aguacate y ensalada fresca', porcion: 'Media palta', p: 0, c: 20, g: 14 }
-    ],
-    calorias: 680,
-    proteinas: 54,
-    carbohidratos: 65,
-    grasas: 22,
-    completado: true
-  },
-  {
-    id: 3,
-    tipo: 'Merienda',
-    hora: '17:00',
-    nombre: 'Yogur con frutos rojos y semillas',
-    items: [
-      { nombre: 'Yogur natural', porcion: '200g', p: 14, c: 12, g: 3 },
-      { nombre: 'Frutos rojos y semillas de calabaza', porcion: '50g', p: 4, c: 14, g: 5 }
-    ],
-    calorias: 280,
-    proteinas: 18,
-    carbohidratos: 26,
-    grasas: 8,
-    completado: false
-  },
-  {
-    id: 4,
-    tipo: 'Cena',
-    hora: '20:30',
-    nombre: 'Salmón al horno con espárragos y batata',
-    items: [
-      { nombre: 'Filete de salmón', porcion: '160g', p: 34, c: 0, g: 12 },
-      { nombre: 'Batata al vapor', porcion: '120g', p: 2, c: 28, g: 0 },
-      { nombre: 'Espárragos salteados', porcion: '100g', p: 2, c: 4, g: 2 }
-    ],
-    calorias: 460,
-    proteinas: 38,
-    carbohidratos: 32,
-    grasas: 14,
-    completado: false
-  }
-];
+function getLocalDateISO(d = new Date()) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export function MealProvider({ children }) {
-  const [meals, setMeals] = useState(() => {
+  const { user } = useAuth();
+  const [meals, setMeals] = useState([]);
+  const [waterMl, setWaterMl] = useState(0);
+  const [waterMeta, setWaterMeta] = useState(2000);
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateISO());
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Cargar comidas y agua desde la API del backend
+  const loadData = useCallback(async () => {
+    // Si no hay token de acceso, evitamos peticiones no autenticadas
+    if (!tokenStorage.getAccessToken()) {
+      setMeals([]);
+      setWaterMl(0);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
     try {
-      const saved = localStorage.getItem(STORAGE_MEALS_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      const [mealsRes, waterRes] = await Promise.all([
+        apiService.getComidas(selectedDate),
+        apiService.getAguaHoy()
+      ]);
+
+      if (mealsRes.ok && Array.isArray(mealsRes.data)) {
+        setMeals(mealsRes.data);
+      } else if (mealsRes.error) {
+        setError(mealsRes.error);
       }
-    } catch (e) {
-      console.warn('Error leyendo meals de localStorage:', e);
-    }
-    return INITIAL_MEALS;
-  });
 
-  const [waterMl, setWaterMl] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_WATER_KEY);
-      if (saved !== null) return Number(saved);
-    } catch (e) {
-      console.warn('Error leyendo water de localStorage:', e);
-    }
-    return 2400; // 2.4L por defecto
-  });
-
-  // Guardar en localStorage cada vez que cambien meals
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_MEALS_KEY, JSON.stringify(meals));
-    } catch (e) {
-      console.warn('Error guardando meals en localStorage:', e);
-    }
-  }, [meals]);
-
-  // Guardar en localStorage cada vez que cambie waterMl
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_WATER_KEY, String(waterMl));
-    } catch (e) {
-      console.warn('Error guardando water en localStorage:', e);
-    }
-  }, [waterMl]);
-
-  // Agregar una nueva comida
-  const addMeal = (newMeal) => {
-    setMeals((prev) => [
-      ...prev,
-      {
-        ...newMeal,
-        id: newMeal.id || Date.now(),
-        completado: newMeal.completado !== undefined ? newMeal.completado : true,
-        hora: newMeal.hora || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      if (waterRes.ok && waterRes.data) {
+        setWaterMl(Number(waterRes.data.cantidad_ml) || 0);
+        if (waterRes.data.meta_ml) {
+          setWaterMeta(Number(waterRes.data.meta_ml));
+        }
       }
-    ]);
+    } catch (err) {
+      console.warn('Error al sincronizar comidas/agua con backend:', err);
+      setError('Error de conexión al cargar datos de nutrición.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedDate]);
+
+  // Recargar cuando cambie el usuario autenticado o la fecha seleccionada
+  useEffect(() => {
+    loadData();
+  }, [loadData, user?.id_usuario]);
+
+  // Agregar una nueva comida (POST /api/comidas) con actualización optimista
+  const addMeal = async (newMeal) => {
+    const tempId = newMeal.id || Date.now();
+    const optimisticMeal = {
+      ...newMeal,
+      id: tempId,
+      id_comida: tempId,
+      completado: newMeal.completado !== undefined ? newMeal.completado : true,
+      hora: newMeal.hora || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    // Actualización optimista inmediata (sin parpadeo)
+    setMeals((prev) => [...prev, optimisticMeal]);
+
+    const payload = {
+      tipo: newMeal.tipo || 'Almuerzo',
+      nombre: newMeal.nombre,
+      hora: optimisticMeal.hora,
+      calorias: Number(newMeal.calorias) || 0,
+      proteinas: Number(newMeal.proteinas) || 0,
+      carbohidratos: Number(newMeal.carbohidratos) || 0,
+      grasas: Number(newMeal.grasas) || 0,
+      completado: optimisticMeal.completado,
+      fecha: selectedDate,
+      items: Array.isArray(newMeal.items) ? newMeal.items : []
+    };
+
+    const res = await apiService.createComida(payload);
+    if (res.ok && res.comida) {
+      // Reemplazar ID temporal con ID real de la base de datos
+      const actualComida = {
+        ...res.comida,
+        id: res.comida.id || res.comida.id_comida
+      };
+      setMeals((prev) => prev.map((m) => (m.id === tempId ? actualComida : m)));
+      return { ok: true, comida: actualComida };
+    } else {
+      // Revertir en caso de error
+      setMeals((prev) => prev.filter((m) => m.id !== tempId));
+      setError(res.error || 'Error al guardar la comida en el servidor.');
+      return { ok: false, error: res.error };
+    }
   };
 
-  // Eliminar comida
-  const removeMeal = (id) => {
-    setMeals((prev) => prev.filter((m) => m.id !== id));
+  // Eliminar comida (DELETE /api/comidas/:id) con rollback
+  const removeMeal = async (id) => {
+    const previousMeals = meals;
+    const targetMeal = meals.find((m) => m.id === id || m.id_comida === id);
+    const actualId = targetMeal?.id_comida || targetMeal?.id || id;
+
+    setMeals((prev) => prev.filter((m) => m.id !== id && m.id_comida !== id));
+
+    const res = await apiService.deleteComida(actualId);
+    if (!res.ok) {
+      setMeals(previousMeals);
+      setError(res.error || 'Error al eliminar la comida.');
+      return { ok: false, error: res.error };
+    }
+    return { ok: true };
   };
 
-  // Alternar estado completado/consumido
-  const toggleMealCompleted = (id) => {
+  // Alternar estado completado/consumido (PATCH /api/comidas/:id)
+  const toggleMealCompleted = async (id) => {
+    const targetMeal = meals.find((m) => m.id === id || m.id_comida === id);
+    if (!targetMeal) return;
+
+    const actualId = targetMeal.id_comida || targetMeal.id || id;
+    const newStatus = !targetMeal.completado;
     setMeals((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, completado: !m.completado } : m))
+      prev.map((m) => (m.id === id || m.id_comida === id ? { ...m, completado: newStatus } : m))
     );
+
+    const res = await apiService.updateComida(actualId, { completado: newStatus });
+    if (!res.ok) {
+      // Revertir
+      setMeals((prev) =>
+        prev.map((m) => (m.id === id || m.id_comida === id ? { ...m, completado: !newStatus } : m))
+      );
+      setError(res.error || 'Error al actualizar estado de la comida.');
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, comida: res.comida };
   };
 
-  // Hidratación
-  const addWater = (ml = 250) => {
-    setWaterMl((prev) => Math.min(prev + ml, 5000));
+  // Hidratación: Sumar agua (POST /api/agua)
+  const addWater = async (ml = 250) => {
+    const prevWater = waterMl;
+    const optimisticTotal = Math.min(prevWater + ml, 10000);
+    setWaterMl(optimisticTotal);
+
+    const res = await apiService.addAgua(ml);
+    if (res.ok && res.data) {
+      setWaterMl(Number(res.data.cantidad_ml) || optimisticTotal);
+      return { ok: true, data: res.data };
+    } else {
+      setWaterMl(prevWater);
+      setError(res.error || 'Error al registrar consumo de agua.');
+      return { ok: false, error: res.error };
+    }
   };
 
-  const removeWater = (ml = 250) => {
-    setWaterMl((prev) => Math.max(prev - ml, 0));
+  // Hidratación: Restar agua sincronizada
+  const removeWater = async (ml = 250) => {
+    const prevWater = waterMl;
+    const targetMl = Math.max(0, prevWater - ml);
+    setWaterMl(targetMl);
+
+    const res = await apiService.setAguaTotal(targetMl);
+    if (res.ok && res.data) {
+      setWaterMl(Number(res.data.cantidad_ml) || targetMl);
+      return { ok: true, data: res.data };
+    } else {
+      setWaterMl(prevWater);
+      setError(res.error || 'Error al actualizar consumo de agua.');
+      return { ok: false, error: res.error };
+    }
   };
 
-  const resetWater = () => {
+  // Hidratación: Reiniciar agua
+  const resetWater = async () => {
+    const prevWater = waterMl;
     setWaterMl(0);
+
+    const res = await apiService.resetAgua();
+    if (res.ok && res.data) {
+      setWaterMl(Number(res.data.cantidad_ml) || 0);
+      return { ok: true, data: res.data };
+    } else {
+      setWaterMl(prevWater);
+      setError(res.error || 'Error al reiniciar agua.');
+      return { ok: false, error: res.error };
+    }
   };
 
   // Totales calculados (comidas completadas vs todas)
@@ -182,13 +230,20 @@ export function MealProvider({ children }) {
       value={{
         meals,
         waterMl,
+        waterMeta,
         dailyTotals,
+        isLoading,
+        error,
+        selectedDate,
+        setSelectedDate,
         addMeal,
         removeMeal,
         toggleMealCompleted,
         addWater,
         removeWater,
-        resetWater
+        resetWater,
+        refreshMeals: loadData,
+        refreshWater: loadData
       }}
     >
       {children}
@@ -203,4 +258,3 @@ export function useMeals() {
   }
   return context;
 }
-

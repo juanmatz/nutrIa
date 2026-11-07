@@ -215,6 +215,7 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_TTL_DAYS', '7'))),
     'USER_ID_FIELD': 'id_usuario',
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'TOKEN_REFRESH_SERIALIZER': 'core.serializers.UsuarioTokenRefreshSerializer',
 }
 
 

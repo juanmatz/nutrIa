@@ -8,10 +8,10 @@ const AuthContext = createContext(null);
 export const DEFAULT_USER = {
   id_usuario: 2,
   nombre: "Camila Torres",
-  email: "camila.torres@biotech.fit",
+  email: "camila.torres@nutria.fit",
   id_rol: 2,
   rol_nombre: "Usuario",
-  rol: "Premium Athlete",
+  rol: "Usuario",
   peso: 63.8,
   altura: 168,
   edad: 26,
@@ -97,10 +97,25 @@ export function AuthProvider({ children }) {
     setIsLoading(false);
 
     if (result.ok && result.user) {
+      const u = result.user;
+      const pesoNum = parseFloat(u.peso) || DEFAULT_USER.peso;
+      const alturaNum = parseFloat(u.altura) || DEFAULT_USER.altura;
+      const edadNum = parseInt(u.edad, 10) || DEFAULT_USER.edad;
+      const altM = alturaNum > 3 ? alturaNum / 100 : alturaNum;
+      const computedImc = Number((pesoNum / (altM * altM)).toFixed(1));
+      const computedBmr = Math.round(10 * pesoNum + 6.25 * (altM * 100) - 5 * edadNum + 5);
+      const computedStatus = computedImc < 18.5 ? "Bajo peso" : computedImc < 25 ? "Saludable" : computedImc < 30 ? "Sobrepeso" : "Obesidad";
+
       const sessionUser = {
         ...DEFAULT_USER,
-        ...result.user,
-        rol_nombre: result.user.rol_nombre || 'Usuario'
+        ...u,
+        peso: pesoNum,
+        altura: alturaNum,
+        edad: edadNum,
+        imc: isNaN(computedImc) ? DEFAULT_USER.imc : computedImc,
+        metabolismo_base: isNaN(computedBmr) ? DEFAULT_USER.metabolismo_base : computedBmr,
+        imc_estado: computedStatus,
+        rol_nombre: u.rol_nombre || (u.id_rol === 1 ? 'Administrador' : u.id_rol === 3 ? 'Nutricionista' : 'Usuario')
       };
       setUser(sessionUser);
       localStorage.setItem('nutria_user_session', JSON.stringify(sessionUser));
@@ -122,20 +137,20 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Selector rápido de demo: alternar entre Admin y Atleta/Usuario
+  // Selector rápido de demo: alternar entre Admin y Usuario
   const switchDemoUser = (roleType) => {
     if (roleType === 'admin') {
       const adminUser = {
         id_usuario: 1,
-        nombre: "Dr. Roberto Méndez (Admin)",
-        email: "admin@biotech.fit",
+        nombre: "Roberto Méndez (Admin)",
+        email: "admin@nutria.fit",
         id_rol: 1,
         rol_nombre: "Administrador",
-        rol: "Super Administrador",
+        rol: "Administrador",
         peso: 76.5,
         altura: 178,
         edad: 38,
-        objetivo: "Supervisión Clínica Global",
+        objetivo: "Bienestar y Rendimiento",
         calorias_diarias: 2400,
         metabolismo_base: 1650,
         imc: 24.1,

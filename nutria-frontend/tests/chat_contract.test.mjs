@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Empirical Challenger Test Suite: Frontend Contract & State Machine
  *
  * Verifies:

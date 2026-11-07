@@ -14,9 +14,9 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_MODEL = "google/gemini-2.0-flash-001"
+DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 
-# Mapeo de términos alérgenos comunes para detección clínica
+# Mapeo de términos alérgenos comunes para detección de restricciones alimentarias
 ALLERGEN_KEYWORD_MAP: Dict[str, List[str]] = {
     'marisco': [
         'marisco', 'mariscos', 'camaron', 'camarón', 'camarones', 'langostino',
@@ -71,7 +71,8 @@ def calculate_biometrics(
     gender: str = "Femenino",
     goal: str = "Hipertrofia Limpia & Tonificación Magra",
     daily_calories: Optional[int] = None,
-    name: str = "Camila Torres"
+    name: str = "Camila Torres",
+    consumed_today: Optional[float] = None
 ) -> Dict[str, Any]:
     """
     Calcula IMC y TDEE (Ecuación Mifflin-St Jeor) con normalización de unidades.
@@ -113,6 +114,9 @@ def calculate_biometrics(
     else:
         tdee = round(bmr * 1.55)  # Factor de actividad física moderada
 
+    consumed_kcal = round(float(consumed_today), 1) if consumed_today is not None else None
+    remaining_kcal = max(0, tdee - round(consumed_kcal)) if consumed_kcal is not None else None
+
     return {
         "name": name,
         "weight_kg": w,
@@ -124,7 +128,9 @@ def calculate_biometrics(
         "imc_status": imc_status,
         "bmr": bmr,
         "tdee": tdee,
-        "goal": goal or "Hipertrofia Limpia & Tonificación Magra"
+        "goal": goal or "Hipertrofia Limpia & Tonificación Magra",
+        "consumed_today_kcal": consumed_kcal,
+        "remaining_kcal": remaining_kcal
     }
 
 
@@ -161,121 +167,79 @@ def detect_blocked_allergen(message: str, exclusions: List[str]) -> Optional[Tup
     return None
 
 
-def generate_mock_response(message: str, bio: Dict[str, Any], exclusions: List[str]) -> str:
+def generate_mock_response(
+    message: str,
+    bio: Dict[str, Any],
+    exclusions: List[str],
+    reason: str = "Servicio de IA en modo contingencia local"
+) -> str:
     """
-    Motor Mock Bioadaptativo:
-    Genera respuestas inteligentes, contextualizadas y con validación de seguridad
-    de alérgenos cuando no se dispone de OPENROUTER_API_KEY o falla la red.
+    Motor de Contingencia Transparente y Seguro:
+    Aplica el filtro de alérgenos y devuelve el estado real del servicio
+    y parámetros nutricionales del usuario sin simular recetas pregrabadas falsas.
     """
-    name = bio.get("name", "Camila")
+    name = bio.get("name", "Usuario")
     tdee = bio.get("tdee", 2150)
     goal = bio.get("goal", "Hipertrofia Limpia & Tonificación Magra")
-    weight = bio.get("weight_kg", 63.8)
     imc = bio.get("imc", 22.6)
     imc_status = bio.get("imc_status", "Saludable")
+    exclusions_str = ", ".join(exclusions) if exclusions else "Ninguno registrado"
 
-    # 1. Blindaje Alérgico: detección inmediata
+    # 1. Blindaje Alérgico: detección inmediata prioritaria
     allergen_match = detect_blocked_allergen(message, exclusions)
     if allergen_match:
         detected_term, exclusion_rule = allergen_match
         return (
-            f"⚠️ **Alerta de Seguridad Clínica NutriaBot**\n\n"
+            f"⚠️ **Alerta de Seguridad Alimentaria NutriaBot**\n\n"
             f"He detectado una consulta sobre **'{detected_term}'** en tu mensaje. "
-            f"Tu perfil cuenta con un **blindaje clínico estricto** para la exclusión: **{exclusion_rule}**.\n\n"
-            f"Por seguridad médica y nutricional, este alimento está completamente bloqueado en tus recomendaciones. "
+            f"Tu perfil cuenta con un **blindaje de seguridad activo** para evitar: **{exclusion_rule}**.\n\n"
+            f"Para cuidar tu bienestar, este alimento está excluido de tus sugerencias. "
             f"Para mantener tu objetivo de **{goal}** y tu meta de **{tdee} kcal**, te sugiero reemplazarlo "
-            f"por alternativas biocompatibles seguras como pechuga de pavo braseada, lomo magro o claras de huevo pasteurizadas."
+            f"por alternativas ricas y seguras libres de **{detected_term}**."
         )
 
-    norm_msg = normalize_text(message)
+    consumed_info = ""
+    if bio.get("consumed_today_kcal") is not None:
+        consumed_info = f"- **Calorías consumidas hoy**: {bio['consumed_today_kcal']} kcal (Restantes: {bio['remaining_kcal']} kcal)\n"
 
-    # 2. Consultas sobre Desayuno
-    if "desayuno" in norm_msg:
-        cals_desayuno = round(tdee * 0.22)
-        return (
-            f"¡Hola {name}! Para tu objetivo de **{goal}** y requerimiento metabólico de **{tdee} kcal**, "
-            f"te he preparado una propuesta de **Desayuno Bio-Anabólico** ({cals_desayuno} kcal):\n\n"
-            f"- **Tortilla Bio-Clean**: 3 claras de huevo + 1 huevo entero con espinacas baby y champiñones.\n"
-            f"- **Carbohidrato complejo**: 2 rebanadas de pan de masa madre o centeno tostado.\n"
-            f"- **Grasa saludable**: 1/4 de aguacate maduro en rodajas.\n"
-            f"- **Bebida**: Infusión de té verde o café solo sin azúcar.\n\n"
-            f"📊 **Aporte estimado**: 34g proteína | 38g carbohidratos | 12g grasas saludables.\n"
-            f"🛡️ **Blindaje activo**: 0% alérgenos detectados (sin mariscos, sin lactosa, sin frutos secos)."
-        )
-
-    # 3. Consultas sobre Proteína / Batidos / Suplementación
-    if any(k in norm_msg for k in ["proteina", "batido", "suplemento", "macros", "requerimiento"]):
-        prot_gr = round(weight * 2.0)
-        return (
-            f"Para potenciar tu meta de **{goal}** con tu peso actual de **{weight} kg**, "
-            f"tu requerimiento proteico óptimo se sitúa en **{prot_gr}g diarios** (~2.0g/kg):\n\n"
-            f"1. **Pechuga de pavo / pollo a la plancha**: 31g proteína / 100g.\n"
-            f"2. **Claras de huevo pasteurizadas**: 11g proteína / 100g (altísima biodisponibilidad).\n"
-            f"3. **Proteína vegetal aislada (Guisante/Arroz)**: Alternativa hipoalergénica sin suero lácteo.\n"
-            f"4. **Salmón o atún fresco**: 22g proteína / 100g + aporte de ácidos grasos Omega-3.\n\n"
-            f"🛡️ Todas las fuentes seleccionadas cumplen estrictamente con tus exclusiones activas."
-        )
-
-    # 4. Consultas sobre Almuerzo / Comida
-    if any(k in norm_msg for k in ["almuerzo", "comida", "mediodia"]):
-        cals_almuerzo = round(tdee * 0.35)
-        return (
-            f"Para tu **Almuerzo Metabólico** ({cals_almuerzo} kcal), adaptado a tu TDEE de **{tdee} kcal**:\n\n"
-            f"- **Proteína**: 180g de solomillo de pavo o pechuga de pollo al limón con hierbas provenzales.\n"
-            f"- **Energía limpia**: 150g de quinoa cocida con perejil fresco o arroz basmati integral.\n"
-            f"- **Fibra y micronutrientes**: Brócoli al vapor con zanahorias asadas y 10ml de aceite de oliva virgen extra.\n\n"
-            f"📊 **Macros**: 45g proteína | 52g carbohidratos | 14g grasas.\n"
-            f"🛡️ 100% libre de alérgenos bloqueados."
-        )
-
-    # 5. Consultas sobre Cena
-    if "cena" in norm_msg:
-        cals_cena = round(tdee * 0.25)
-        return (
-            f"¡Excelente opción! Para una **Cena Ligera y Nutritiva** (~{cals_cena} kcal):\n\n"
-            f"- **Plato principal**: 160g de filete de pescado o pechuga a la plancha con espárragos y calabacín.\n"
-            f"- **Guarnición**: 1 porción pequeña de batata asada o puré casero.\n"
-            f"- **Ensalada fresca**: Espinacas baby, tomate cherry y pepino con unas gotas de aceite de oliva.\n\n"
-            f"📊 **Aporte estimado**: 34g proteínas | 24g carbohidratos | 8g grasas saludables.\n"
-            f"✨ Libre de los ingredientes que prefieres evitar."
-        )
-
-    # 6. Solicitud de Plan Completo / Regenerar Dieta
-    if any(k in norm_msg for k in ["plan", "regenera", "dieta", "semana", "menu", "menú"]):
-        return (
-            f"📋 **Propuesta de Menú Diario para {name}**\n"
-            f"• Meta del día: **{tdee} kcal** | Objetivo: {goal}\n\n"
-            f"1. 🌅 **Desayuno** (~{round(tdee * 0.22)} kcal): Tortilla de claras o huevos con espinacas y tostadas integrales.\n"
-            f"2. ☀️ **Almuerzo** (~{round(tdee * 0.35)} kcal): Pollo o pavo a la plancha con quinoa y vegetales salteados.\n"
-            f"3. 🍎 **Merienda** (~{round(tdee * 0.15)} kcal): Yogur vegetal con frutos rojos y semillas de calabaza.\n"
-            f"4. 🌙 **Cena** (~{round(tdee * 0.28)} kcal): Pescado al horno con batata y ensalada verde.\n\n"
-            f"🥗 Seguro y adaptado a tus preferencias alimentarias."
-        )
-
-    # 7. Respuesta Contextualizada General
     return (
-        f"¡Hola {name}! Con gusto te ayudo. Tomando en cuenta tu meta de **{tdee} kcal al día** "
-        f"y tu objetivo de **{goal}**:\n\n"
-        f"Respecto a lo que me comentas (*\"{message}\"*), puedo sugerirte opciones de comidas, recetas rápidas "
-        f"o cómo distribuir tus proteínas y calorías a lo largo del día. ¿En qué comida o momento te gustaría enfocarte hoy?"
+        f"ℹ️ **NutriaBot — Asistencia en Modo Contingencia**\n\n"
+        f"¡Hola {name}! En este momento la conexión en vivo con el modelo `{DEFAULT_MODEL}` "
+        f"no se encuentra disponible ({reason}).\n\n"
+        f"📊 **Tus parámetros nutricionales registrados**:\n"
+        f"- **Objetivo nutricional**: {goal}\n"
+        f"- **Requerimiento diario (TDEE)**: {tdee} kcal\n"
+        f"- **Estado IMC**: {imc} kg/m² ({imc_status})\n"
+        f"{consumed_info}"
+        f"- **Alimentos a evitar**: {exclusions_str}\n\n"
+        f"💡 Tu consulta (*\"{message}\"*) ha sido revisada con tus preferencias alimentarias. "
+        f"Restablece la conexión con OpenRouter para generar recomendaciones dinámicas en tiempo real."
     )
 
 
 def build_system_prompt(bio: Dict[str, Any], exclusions: List[str], scheme: str = "Alta en Proteína") -> str:
     """
-    Construye el System Prompt amigable y natural con inyección de metas y restricciones.
+    Construye el System Prompt amigable y natural con inyección de metas, comidas hoy y restricciones.
     """
     exclusions_text = "\n".join([f"- ⚠️ {ex}" for ex in exclusions]) if exclusions else "- Ninguno registrado"
     inline_exclusions = ", ".join(exclusions) if exclusions else "ninguno"
 
-    return f"""Eres Nutri, el asistente nutricional amigable y experto de la plataforma NutrIA.
-Tu estilo es cálido, motivador, claro y muy práctico. Explicas las cosas de forma sencilla y natural, sin usar jerga médica pesada ni sonar como un robot.
+    consumed_line = ""
+    if bio.get("consumed_today_kcal") is not None:
+        consumed_line = (
+            f"\n- Calorías registradas hoy: {bio['consumed_today_kcal']} kcal "
+            f"(Restantes para hoy: {bio['remaining_kcal']} kcal)"
+        )
+
+    return f"""Eres Nutri, el asistente de alimentación saludable y bienestar de la plataforma NutrIA.
+Operas sobre el modelo {DEFAULT_MODEL}.
+Tu estilo es cálido, motivador, cercano, claro y muy práctico, pensado para personas comunes que quieren mejorar su alimentación y bienestar diario. Explicas las cosas de forma sencilla y natural, sin usar términos médicos, clínicos ni sonar como un doctor.
 
 PERFIL DEL USUARIO:
 - Nombre: {bio.get('name', 'Usuario')}
 - Peso: {bio['weight_kg']} kg | Estatura: {bio['height_m']:.2f} m | Edad: {bio['age']} años
 - Índice de Masa Corporal (IMC): {bio['imc']} kg/m² ({bio['imc_status']})
-- Meta calórica diaria: {bio['tdee']} kcal/día
+- Meta calórica diaria: {bio['tdee']} kcal/día{consumed_line}
 - Objetivo: {bio['goal']}
 - Enfoque alimentario: {scheme}
 
@@ -293,10 +257,11 @@ def query_nutriabot(
     message: str,
     user_bio: Dict[str, Any],
     exclusions: Optional[List[str]] = None,
-    scheme: str = "Alta en Proteína"
+    scheme: str = "Alta en Proteína",
+    history: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
     """
-    Procesa la consulta a NutriaBot llamando a OpenRouter API o conmutando a Mock Bioadaptativo.
+    Procesa la consulta a NutriaBot llamando a OpenRouter API o conmutando a contingencia segura.
     """
     if exclusions is None:
         exclusions = ["Sin Frutos Cáscara", "Sin Mariscos", "Sin Lactosa"]
@@ -308,12 +273,14 @@ def query_nutriabot(
         "imc": user_bio["imc"],
         "tdee": user_bio["tdee"],
         "objetivo": user_bio["goal"],
-        "alérgenos_bloqueados": exclusions
+        "alérgenos_bloqueados": exclusions,
+        "calorias_consumidas_hoy": user_bio.get("consumed_today_kcal"),
+        "calorias_restantes": user_bio.get("remaining_kcal"),
     }
 
-    # Si OPENROUTER_API_KEY no está configurada, operar en Modo Mock
-    if not api_key:
-        logger.info("OPENROUTER_API_KEY no configurada. Ejecutando NutriaBot en Modo Mock.")
+    # Filtro prioritario ante alérgenos bloqueados
+    allergen_match = detect_blocked_allergen(message, exclusions)
+    if allergen_match:
         reply = generate_mock_response(message, user_bio, exclusions)
         return {
             "reply": reply,
@@ -323,14 +290,39 @@ def query_nutriabot(
             "metabolic_context": metabolic_context
         }
 
-    # Llamada a OpenRouter API con System Prompt bioadaptativo
+    # Si OPENROUTER_API_KEY no está configurada, operar en Modo Contingencia
+    if not api_key:
+        logger.info("OPENROUTER_API_KEY no configurada. Ejecutando NutriaBot en Modo Contingencia.")
+        reply = generate_mock_response(
+            message, user_bio, exclusions, reason="Clave de API no configurada"
+        )
+        return {
+            "reply": reply,
+            "status": "success",
+            "mock": True,
+            "model": model,
+            "metabolic_context": metabolic_context
+        }
+
+    # Llamada a OpenRouter API con System Prompt bioadaptativo e historial de conversación
     system_prompt = build_system_prompt(user_bio, exclusions, scheme)
+    conversation_messages: List[Dict[str, str]] = [
+        {"role": "system", "content": system_prompt}
+    ]
+
+    if history and isinstance(history, list):
+        for turn in history[-12:]:
+            if isinstance(turn, dict):
+                role = str(turn.get("role", "")).strip().lower()
+                content = str(turn.get("content", "")).strip()
+                if role in ("user", "assistant") and content:
+                    conversation_messages.append({"role": role, "content": content})
+
+    conversation_messages.append({"role": "user", "content": message})
+
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": message}
-        ],
+        "messages": conversation_messages,
         "temperature": 0.7,
         "max_tokens": 1000
     }
@@ -350,7 +342,13 @@ def query_nutriabot(
         with urllib.request.urlopen(req, timeout=20) as resp:
             raw_body = resp.read().decode("utf-8")
             data = json.loads(raw_body)
-            reply = data["choices"][0]["message"]["content"]
+            choices = data.get("choices") or []
+            if not choices:
+                raise ValueError("Respuesta de OpenRouter sin 'choices'.")
+            choice = choices[0]
+            reply = choice.get("message", {}).get("content") or choice.get("text", "")
+            if not reply:
+                raise ValueError("OpenRouter retornó respuesta vacía.")
             return {
                 "reply": reply,
                 "status": "success",
@@ -368,7 +366,9 @@ def query_nutriabot(
             "HTTPError en OpenRouter API (%s): %s. Conmutando a modo contingencia.",
             http_err, err_body
         )
-        fallback_reply = generate_mock_response(message, user_bio, exclusions)
+        fallback_reply = generate_mock_response(
+            message, user_bio, exclusions, reason=f"Error HTTP {http_err.code} en OpenRouter"
+        )
         return {
             "reply": fallback_reply,
             "status": "success",
@@ -381,7 +381,9 @@ def query_nutriabot(
             "Excepción al consultar OpenRouter API (%s). Conmutando a Modo de contingencia.",
             exc
         )
-        fallback_reply = generate_mock_response(message, user_bio, exclusions)
+        fallback_reply = generate_mock_response(
+            message, user_bio, exclusions, reason="Error de red o tiempo de espera agotado"
+        )
         return {
             "reply": fallback_reply,
             "status": "success",

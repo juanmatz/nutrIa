@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Droplets,
   Flame,
@@ -7,17 +7,16 @@ import {
   Minus,
   Apple,
   Calendar,
-  ArrowRight,
-  Heart
+  ArrowRight
 } from 'lucide-react';
 import { useMeals } from '../context/MealContext';
+import { apiService } from '../services/api';
 
 export default function DashboardView({
   userMetrics,
   onOpenWeightModal,
   onOpenMealModal,
-  onNavigateToDietPlan,
-  onShowToast
+  onNavigateToDietPlan
 }) {
   const { dailyTotals, waterMl, addWater, removeWater } = useMeals();
 
@@ -45,39 +44,72 @@ export default function DashboardView({
   });
   const capitalizedDateFull = dateFormattedFull.charAt(0).toUpperCase() + dateFormattedFull.slice(1);
 
-  // Calcular la semana en curso (Lunes a Domingo) con fechas reales
-  const currentDayOfWeek = (today.getDay() + 6) % 7; // 0=Lun, 1=Mar, ..., 4=Vie, 6=Dom
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - currentDayOfWeek);
+  // ─── ADHERENCIA SEMANAL VÍA API (/api/progreso/semanal) ───
+  // Sustituye el array hardcodeado basePastKcal por datos reales de los últimos 7 días
+  const [apiWeeklyProgress, setApiWeeklyProgress] = useState(null);
 
-  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-  const basePastKcal = [2100, 2050, 1980, 2140, 2090, 0, 0];
-
-  const weeklyData = dayNames.map((name, index) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + index);
-    const dayNum = d.getDate();
-    const isToday = index === currentDayOfWeek;
-    const isPast = index < currentDayOfWeek;
-    const isFuture = index > currentDayOfWeek;
-    const kcal = isToday ? currentCalories : (isPast ? basePastKcal[index] : 0);
-    // Meta cumplida si llegó al menos al 85% de las calorías recomendadas
-    const isCompleted = kcal >= Math.round(targetCalories * 0.85);
-
-    return {
-      day: name,
-      dayNum,
-      dateLabel: `${name} ${dayNum}`,
-      kcal,
-      isToday,
-      isPast,
-      isFuture,
-      isCompleted
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchWeekly() {
+      try {
+        const res = await apiService.getProgresoSemanal();
+        if (isMounted && res.ok && Array.isArray(res.data) && res.data.length > 0) {
+          setApiWeeklyProgress(res.data);
+        }
+      } catch (err) {
+        console.warn('Error al consultar progreso semanal:', err);
+      }
+    }
+    fetchWeekly();
+    return () => {
+      isMounted = false;
     };
-  });
+  }, [dailyTotals.calories]);
+
+  // Construcción de los 7 días de la semana sincronizando la respuesta del backend
+  const weeklyData = useMemo(() => {
+    if (Array.isArray(apiWeeklyProgress) && apiWeeklyProgress.length === 7) {
+      return apiWeeklyProgress.map((item) => {
+        // Para el día de hoy, sincroniza reactivamente con las calorías consumidas en sesión
+        const kcal = item.isToday ? currentCalories : Number(item.kcal) || 0;
+        const isCompleted = kcal >= Math.round(targetCalories * 0.85);
+        return {
+          ...item,
+          kcal,
+          isCompleted
+        };
+      });
+    }
+
+    // Fallback dinámico si no hay respuesta de la API (sin mock data estática)
+    const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const monthAbbr = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const fallbackList = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayIndex = (d.getDay() + 6) % 7;
+      const isToday = i === 0;
+      const isPast = i > 0;
+      const kcal = isToday ? currentCalories : 0;
+      const isCompleted = kcal >= Math.round(targetCalories * 0.85);
+
+      fallbackList.push({
+        day: dayNames[dayIndex],
+        dayNum: d.getDate(),
+        dateLabel: `${d.getDate()} ${monthAbbr[d.getMonth()]}`,
+        kcal,
+        isToday,
+        isPast,
+        isFuture: false,
+        isCompleted
+      });
+    }
+    return fallbackList;
+  }, [apiWeeklyProgress, currentCalories, targetCalories]);
 
   const completedCount = weeklyData.filter(d => (d.isPast || d.isToday) && d.isCompleted).length;
-  const elapsedCount = currentDayOfWeek + 1;
+  const elapsedCount = weeklyData.filter(d => d.isPast || d.isToday).length;
   const maxWeeklyKcal = Math.max(...weeklyData.map(d => d.kcal), targetCalories, 2400);
 
   // Peso e IMC
@@ -86,10 +118,10 @@ export default function DashboardView({
   const heightValue = userMetrics?.height || 168;
   const imcPositionPercent = Math.min(100, Math.max(0, ((imcValue - 15) / 20) * 100));
 
-  // Agua
-  const targetWater = 3000;
+  // Hidratación / Consumo de agua (consumido en vivo desde MealContext /api/agua/hoy)
+  const targetWater = userMetrics?.targetWater || 2500;
   const waterPercent = Math.min(100, Math.round((waterMl / targetWater) * 100));
-  const waterGlasses = Math.min(10, Math.round((waterMl / 300)));
+  const waterGlasses = Math.min(10, Math.round(waterMl / (targetWater / 10)));
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
@@ -191,10 +223,15 @@ export default function DashboardView({
               <span className="text-[11px] text-[var(--text-secondary)] block">Has comido</span>
               <span className="text-base font-extrabold text-[var(--text-primary)]">{currentCalories} kcal</span>
             </div>
-            <div className="bg-[var(--bg-app)] p-3 rounded-2xl border border-[var(--border-card)] shadow-sm">
-              <span className="text-[11px] text-[var(--text-secondary)] block">Tu objetivo</span>
-              <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{targetCalories} kcal</span>
-            </div>
+            <button
+              type="button"
+              onClick={onOpenWeightModal}
+              className="bg-[var(--bg-app)] hover:border-emerald-500 p-3 rounded-2xl border border-[var(--border-card)] shadow-sm transition group"
+              title="Haz clic para cambiar tu meta diaria"
+            >
+              <span className="text-[11px] text-[var(--text-secondary)] block">Tu objetivo (Editar)</span>
+              <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 group-hover:underline">{targetCalories} kcal</span>
+            </button>
           </div>
         </div>
 
@@ -290,7 +327,7 @@ export default function DashboardView({
               </div>
               <div>
                 <h2 className="text-sm font-bold text-[var(--text-primary)]">Calendario de Cumplimiento</h2>
-                <p className="text-[11px] text-[var(--text-secondary)]">Semana en curso</p>
+                <p className="text-[11px] text-[var(--text-secondary)]">Últimos 7 días evaluados</p>
               </div>
             </div>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
@@ -366,7 +403,7 @@ export default function DashboardView({
           <div className="my-auto py-2">
             <div className="text-center mb-3">
               <span className="text-2xl font-black text-[var(--text-primary)]">{(waterMl / 1000).toFixed(1)}</span>
-              <span className="text-xs text-[var(--text-secondary)] font-medium"> de 3.0 Litros</span>
+              <span className="text-xs text-[var(--text-secondary)] font-medium"> de {(targetWater / 1000).toFixed(1)} Litros</span>
             </div>
 
             <div className="grid grid-cols-5 gap-2 px-2">
@@ -378,7 +415,7 @@ export default function DashboardView({
                       ? 'bg-cyan-500/25 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold'
                       : 'bg-[var(--bg-app)] border-[var(--border-card)] text-[var(--text-muted)]'
                   }`}
-                  title={`Vaso ${i + 1} (~300 ml)`}
+                  title={`Vaso ${i + 1} (~${Math.round(targetWater / 10)} ml)`}
                 >
                   <Droplets size={12} />
                 </div>

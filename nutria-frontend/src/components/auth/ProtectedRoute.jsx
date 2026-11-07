@@ -21,7 +21,7 @@ export default function ProtectedRoute({ children, onOpenAuthModal }) {
         </div>
         <h3 className="text-lg font-bold text-white mb-2">Autenticación Requerida</h3>
         <p className="text-xs text-slate-400 mb-6">
-          Debes iniciar sesión con tu cuenta para acceder a este módulo clínico.
+          Debes iniciar sesión con tu cuenta para acceder a esta sección.
         </p>
         <button
           onClick={onOpenAuthModal}
