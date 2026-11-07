@@ -12,11 +12,12 @@
 const STORAGE_KEY_ACCESS = 'nutria_access_token';
 const STORAGE_KEY_REFRESH = 'nutria_refresh_token';
 
-// Base URL dinámica: si se define VITE_API_URL en Vercel/.env, se usa; si no, fallback a '/api' o proxy local
+// Base URL dinámica: si se define VITE_API_URL en Vercel/Render/.env, se asegura sufijo '/api'; si no, fallback a '/api'
 export function getApiBaseUrl() {
   const envUrl = import.meta.env.VITE_API_URL;
   if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
-    return envUrl.replace(/\/+$/, '');
+    const cleaned = envUrl.trim().replace(/\/+$/, '');
+    return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
   }
   return '/api';
 }
@@ -153,7 +154,12 @@ export async function apiRequest(endpoint, options = {}) {
       if (typeof data === 'object' && data !== null) {
         errMsg = data.error || data.detail || data.mensaje || JSON.stringify(data);
       } else if (typeof data === 'string') {
-        errMsg = data;
+        const trimmedData = data.trim();
+        if (trimmedData.startsWith('<!DOCTYPE') || trimmedData.startsWith('<html')) {
+          errMsg = `Error del servidor (${response.status}): ruta no encontrada o servicio en actualización.`;
+        } else {
+          errMsg = data;
+        }
       }
       return {
         ok: false,
