@@ -4,8 +4,17 @@ from django.db import transaction
 from core.models import Alimento, Categoria, Rol
 
 
-ROLES = ['Administrador', 'Usuario', 'Nutricionista']
-CATEGORIAS = ['Proteínas', 'Carbohidratos', 'Grasas', 'Bebidas']
+ROLES = [
+    (1, 'Administrador'),
+    (2, 'Usuario'),
+    (3, 'Nutricionista'),
+]
+CATEGORIAS = [
+    (1, 'Proteínas'),
+    (2, 'Carbohidratos'),
+    (3, 'Grasas'),
+    (4, 'Bebidas'),
+]
 
 ALIMENTOS = [
     ('Pechuga de pollo', 'Proteínas', 165, 31, 0, 3.6),
@@ -29,14 +38,22 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         roles = {}
-        for nombre in ROLES:
-            rol, creado = Rol.objects.get_or_create(nombre=nombre)
+        for id_rol, nombre in ROLES:
+            rol = Rol.objects.filter(id_rol=id_rol).first() or Rol.objects.filter(nombre=nombre).first()
+            creado = False
+            if not rol:
+                rol = Rol.objects.create(id_rol=id_rol, nombre=nombre)
+                creado = True
             roles[nombre] = rol
             self.stdout.write(f"{'creado' if creado else 'ya existe'} rol: {nombre} (id: {rol.id_rol})")
 
         categorias = {}
-        for nombre in CATEGORIAS:
-            cat, creado = Categoria.objects.get_or_create(nombre=nombre)
+        for id_cat, nombre in CATEGORIAS:
+            cat = Categoria.objects.filter(id_categoria=id_cat).first() or Categoria.objects.filter(nombre=nombre).first()
+            creado = False
+            if not cat:
+                cat = Categoria.objects.create(id_categoria=id_cat, nombre=nombre)
+                creado = True
             categorias[nombre] = cat
             self.stdout.write(f"{'creado' if creado else 'ya existe'} categoría: {nombre}")
 

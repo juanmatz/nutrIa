@@ -4,5 +4,6 @@ set -o errexit
 
 pip install -r requirements.txt
 python manage.py collectstatic --noinput || true
-python manage.py migrate || true
+python manage.py migrate --noinput || true
+python manage.py seed || true
 
