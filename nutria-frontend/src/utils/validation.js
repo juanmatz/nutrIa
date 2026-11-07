@@ -137,11 +137,6 @@ export function validateFoodData({ nombre, calorias, proteinas, carbohidratos, g
   const nameCheck = validateName(nombre, 2, 80);
   if (!nameCheck.isValid) return nameCheck;
 
-  const cal = parseInt(calorias, 10);
-  if (isNaN(cal) || cal < 0 || cal > 10000) {
-    return { isValid: false, error: 'Las calorías deben ser un valor entre 0 y 10,000 kcal.' };
-  }
-
   const p = parseFloat(String(proteinas).replace(',', '.'));
   if (isNaN(p) || p < 0 || p > 500) {
     return { isValid: false, error: 'Las proteínas deben estar entre 0g y 500g.' };
@@ -155,6 +150,14 @@ export function validateFoodData({ nombre, calorias, proteinas, carbohidratos, g
   const g = parseFloat(String(grasas).replace(',', '.'));
   if (isNaN(g) || g < 0 || g > 500) {
     return { isValid: false, error: 'Las grasas deben estar entre 0g y 500g.' };
+  }
+
+  let cal = parseInt(calorias, 10);
+  if (isNaN(cal)) {
+    cal = Math.round((p * 4) + (c * 4) + (g * 9));
+  }
+  if (cal < 0 || cal > 10000) {
+    return { isValid: false, error: 'Las calorías deben ser un valor entre 0 y 10,000 kcal.' };
   }
 
   const catId = parseInt(id_categoria, 10);

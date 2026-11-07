@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_MODEL = "deepseek/deepseek-chat"
+DEFAULT_MODEL = "google/gemini-2.0-flash-001"
 
 # Mapeo de términos alérgenos comunes para detección clínica
 ALLERGEN_KEYWORD_MAP: Dict[str, List[str]] = {
@@ -232,65 +232,60 @@ def generate_mock_response(message: str, bio: Dict[str, Any], exclusions: List[s
     if "cena" in norm_msg:
         cals_cena = round(tdee * 0.25)
         return (
-            f"Para tu **Cena de Reparación y Síntesis** ({cals_cena} kcal):\n\n"
-            f"- **Proteína de digestión ligera**: 170g de lubina o dorada al horno con espárragos verdes.\n"
-            f"- **Carbohidrato reparador**: 120g de batata o patata al vapor.\n"
-            f"- **Ensalada detox**: Rúcula, tomate cherry y pepino con vinagre de manzana.\n\n"
-            f"📊 **Macros**: 36g proteína | 28g carbohidratos | 9g grasas.\n"
-            f"🛡️ Blindaje biológico verificado: Cero alérgenos."
+            f"¡Excelente opción! Para una **Cena Ligera y Nutritiva** (~{cals_cena} kcal):\n\n"
+            f"- **Plato principal**: 160g de filete de pescado o pechuga a la plancha con espárragos y calabacín.\n"
+            f"- **Guarnición**: 1 porción pequeña de batata asada o puré casero.\n"
+            f"- **Ensalada fresca**: Espinacas baby, tomate cherry y pepino con unas gotas de aceite de oliva.\n\n"
+            f"📊 **Aporte estimado**: 34g proteínas | 24g carbohidratos | 8g grasas saludables.\n"
+            f"✨ Libre de los ingredientes que prefieres evitar."
         )
 
     # 6. Solicitud de Plan Completo / Regenerar Dieta
-    if any(k in norm_msg for k in ["plan", "regenera", "dieta", "semana", "menu", "menu"]):
+    if any(k in norm_msg for k in ["plan", "regenera", "dieta", "semana", "menu", "menú"]):
         return (
-            f"📋 **Plan NutriaBot Calibrado para {name}**\n"
-            f"- **Biometría**: {weight} kg | IMC {imc} ({imc_status}) | TDEE Meta: {tdee} kcal | Objetivo: {goal}\n\n"
-            f"**Distribución del día ({tdee} kcal)**:\n"
-            f"1. **Desayuno Bio-Anabólico** ({round(tdee * 0.22)} kcal): Tortilla de claras, pan de centeno, aguacate.\n"
-            f"2. **Almuerzo Metabólico** ({round(tdee * 0.35)} kcal): Pavo braseado con quinoa y verduras al vapor.\n"
-            f"3. **Snack Pre-Entreno** ({round(tdee * 0.15)} kcal): Manzana asada con canela y galletas de arroz puro.\n"
-            f"4. **Cena Reparadora** ({round(tdee * 0.28)} kcal): Pescado blanco al papillote con batata y ensalada verde.\n\n"
-            f"🛡️ **Garantía Inmunológica**: Tolerancia cero a {', '.join(exclusions) if exclusions else 'alérgenos bloqueados'}."
+            f"📋 **Propuesta de Menú Diario para {name}**\n"
+            f"• Meta del día: **{tdee} kcal** | Objetivo: {goal}\n\n"
+            f"1. 🌅 **Desayuno** (~{round(tdee * 0.22)} kcal): Tortilla de claras o huevos con espinacas y tostadas integrales.\n"
+            f"2. ☀️ **Almuerzo** (~{round(tdee * 0.35)} kcal): Pollo o pavo a la plancha con quinoa y vegetales salteados.\n"
+            f"3. 🍎 **Merienda** (~{round(tdee * 0.15)} kcal): Yogur vegetal con frutos rojos y semillas de calabaza.\n"
+            f"4. 🌙 **Cena** (~{round(tdee * 0.28)} kcal): Pescado al horno con batata y ensalada verde.\n\n"
+            f"🥗 Seguro y adaptado a tus preferencias alimentarias."
         )
 
     # 7. Respuesta Contextualizada General
     return (
-        f"¡Hola {name}! He analizado tu mensaje con tu perfil metabólico activo:\n\n"
-        f"- **Estatus Fisiológico**: IMC {imc} kg/m² ({imc_status}), Gasto Diario (TDEE) de **{tdee} kcal**.\n"
-        f"- **Objetivo Primario**: {goal}.\n"
-        f"- **Blindaje Inmunológico Activo**: {', '.join(exclusions) if exclusions else 'Sin restricciones registradas'}.\n\n"
-        f"En relación a tu consulta: *\"{message}\"*, todos los ajustes y recomendaciones nutricionales "
-        f"se encuentran alineados con tu balance energético y respetan rigurosamente la exclusión de tus alérgenos críticos. "
-        f"¿Deseas una sugerencia específica para una comida del día o calibrar tus macronutrientes?"
+        f"¡Hola {name}! Con gusto te ayudo. Tomando en cuenta tu meta de **{tdee} kcal al día** "
+        f"y tu objetivo de **{goal}**:\n\n"
+        f"Respecto a lo que me comentas (*\"{message}\"*), puedo sugerirte opciones de comidas, recetas rápidas "
+        f"o cómo distribuir tus proteínas y calorías a lo largo del día. ¿En qué comida o momento te gustaría enfocarte hoy?"
     )
 
 
 def build_system_prompt(bio: Dict[str, Any], exclusions: List[str], scheme: str = "Alta en Proteína") -> str:
     """
-    Construye el System Prompt bioadaptativo con inyección de biomarcadores y reglas clínicas.
+    Construye el System Prompt amigable y natural con inyección de metas y restricciones.
     """
     exclusions_text = "\n".join([f"- ⚠️ {ex}" for ex in exclusions]) if exclusions else "- Ninguno registrado"
     inline_exclusions = ", ".join(exclusions) if exclusions else "ninguno"
 
-    return f"""Eres NutriaBot, un especialista clínico en nutrición deportiva bioadaptativa y metabolismo de precisión de la plataforma NutrIA.
+    return f"""Eres Nutri, el asistente nutricional amigable y experto de la plataforma NutrIA.
+Tu estilo es cálido, motivador, claro y muy práctico. Explicas las cosas de forma sencilla y natural, sin usar jerga médica pesada ni sonar como un robot.
 
-PERFIL CLÍNICO Y METABÓLICO DEL PACIENTE:
+PERFIL DEL USUARIO:
 - Nombre: {bio.get('name', 'Usuario')}
-- Biometría: {bio['weight_kg']} kg | {bio['height_m']:.2f} m ({bio['height_cm']:.0f} cm) | {bio['age']} años | Sexo: {bio.get('gender', 'Femenino')}
+- Peso: {bio['weight_kg']} kg | Estatura: {bio['height_m']:.2f} m | Edad: {bio['age']} años
 - Índice de Masa Corporal (IMC): {bio['imc']} kg/m² ({bio['imc_status']})
-- Tasa Metabólica Basal (BMR): {bio['bmr']} kcal/día
-- Gasto Energético Total Diario (TDEE Meta): {bio['tdee']} kcal/día
-- Objetivo Nutricional Primario: {bio['goal']}
-- Esquema Alimentario: {scheme}
+- Meta calórica diaria: {bio['tdee']} kcal/día
+- Objetivo: {bio['goal']}
+- Enfoque alimentario: {scheme}
 
-BLINDAJE DE SEGURIDAD CLÍNICA - EXCLUSIONES Y ALÉRGENOS BLOQUEADOS:
+ALERGIAS O ALIMENTOS A EVITAR:
 {exclusions_text}
 
-DIRECTRICES CLÍNICAS ESTRICTAS DE RESPUESTA:
-1. REGLA DE TOLERANCIA CERO A ALÉRGENOS: Queda ESTRICTAMENTE PROHIBIDO recomendar, insinuar o incorporar recetas o ingredientes que contengan o deriven de los alérgenos bloqueados ({inline_exclusions}). Si el paciente solicita o menciona platos con dichos componentes, debes alertarlo de forma contundente e inmediata sobre el peligro para su salud y proponer un sustituto seguro y equivalente en macronutrientes.
-2. ADHERENCIA METABÓLICA AL TDEE: Toda distribución calórica o propuesta de ingesta debe ajustarse rigurosamente al balance de {bio['tdee']} kcal diarias y a su objetivo de {bio['goal']}.
-3. PRECISIÓN EN MACROS: Cuando detalles comidas, incluye la estimación de proteínas (g), carbohidratos (g) y grasas saludables (g).
-4. TONO: Científico, empático, motivador, claro y estructurado en Markdown legible. Responde siempre en español.
+PAUTAS DE RESPUESTA:
+1. SEGURIDAD: Jamás sugieras ingredientes o platos que contengan o puedan contener los alérgenos bloqueados ({inline_exclusions}). Si el usuario pregunta por ellos, explícale amablemente por qué no es seguro y dale un sustituto rico y saludable.
+2. ENFOQUE PRÁCTICO: Da ideas de platos sabrosos, fáciles de preparar y reales. Menciona de forma clara y sencilla las calorías y macronutrientes aproximados (Proteínas, Carbohidratos, Grasas) cuando sugieras comidas.
+3. TONO: Cercano, optimista, breve y ordenado con viñetas claras. Responde siempre en español.
 """
 
 
@@ -363,9 +358,27 @@ def query_nutriabot(
                 "model": model,
                 "metabolic_context": metabolic_context
             }
+    except urllib.error.HTTPError as http_err:
+        err_body = ""
+        try:
+            err_body = http_err.read().decode('utf-8', errors='ignore')
+        except Exception:
+            pass
+        logger.warning(
+            "HTTPError en OpenRouter API (%s): %s. Conmutando a modo contingencia.",
+            http_err, err_body
+        )
+        fallback_reply = generate_mock_response(message, user_bio, exclusions)
+        return {
+            "reply": fallback_reply,
+            "status": "success",
+            "mock": True,
+            "model": model,
+            "metabolic_context": metabolic_context
+        }
     except Exception as exc:
         logger.warning(
-            "Excepción al consultar OpenRouter API (%s). Conmutando a Modo Mock de contingencia.",
+            "Excepción al consultar OpenRouter API (%s). Conmutando a Modo de contingencia.",
             exc
         )
         fallback_reply = generate_mock_response(message, user_bio, exclusions)

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
+import DietPlanView from './components/DietPlanView';
 import ChatView from './components/ChatView';
 import FoodsView from './components/FoodsView';
 import AdminUsersView from './components/AdminUsersView';
@@ -10,12 +11,14 @@ import MealModal from './components/MealModal';
 import AuthModal from './components/auth/AuthModal';
 import RoleGate from './components/auth/RoleGate';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MealProvider, useMeals } from './context/MealContext';
 import { Sparkles, X } from 'lucide-react';
 
 function AppContent() {
   const { user, updateProfile } = useAuth();
+  const { addMeal } = useMeals();
 
-  // Pestaña activa ('dashboard', 'chat', 'foods', 'admin-users')
+  // Pestaña activa ('dashboard', 'diet-plan', 'foods', 'chat', 'admin-users')
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -46,11 +49,13 @@ function AppContent() {
       calorias_diarias: newTdee
     });
 
-    showToast(`✓ Biometría actualizada: ${weight} kg · IMC ${imc} kg/m² sincronizado.`);
+    showToast(`✓ Datos actualizados: ${weight} kg · IMC ${imc} kg/m².`);
   };
 
   const handleAddMeal = (newMeal) => {
-    showToast(`✓ Comida "${newMeal.nombre}" (${newMeal.calorias} kcal) añadida al plan de hoy.`);
+    // Guarda de forma persistente la comida en el MealContext y en localStorage
+    addMeal(newMeal);
+    showToast(`✓ Comida "${newMeal.nombre}" (${newMeal.calorias} kcal) añadida y registrada con éxito.`);
   };
 
   const handleUpdateMetricsFromChat = (newParams) => {
@@ -72,7 +77,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090D14] text-slate-100 flex flex-col md:flex-row antialiased selection:bg-[#00F0A8]/30 selection:text-white">
+    <div className="min-h-screen bg-[#0A100D] text-slate-100 flex flex-col md:flex-row antialiased selection:bg-emerald-500/30 selection:text-white">
       {/* Sidebar fijo a la izquierda */}
       <Sidebar
         activeTab={activeTab}
@@ -99,7 +104,15 @@ function AppContent() {
               userMetrics={metricsForComponents}
               onOpenWeightModal={() => setIsWeightModalOpen(true)}
               onOpenMealModal={() => setIsMealModalOpen(true)}
-              onNavigateToChat={() => setActiveTab('chat')}
+              onNavigateToDietPlan={() => setActiveTab('diet-plan')}
+              onShowToast={showToast}
+            />
+          )}
+
+          {activeTab === 'diet-plan' && (
+            <DietPlanView
+              userMetrics={metricsForComponents}
+              onOpenMealModal={() => setIsMealModalOpen(true)}
               onShowToast={showToast}
             />
           )}
@@ -128,27 +141,31 @@ function AppContent() {
           )}
         </main>
 
-        {/* Footer sutil clínico */}
-        <footer className="border-t border-[#1F2937]/70 py-6 px-8 text-center text-xs text-slate-400">
+        {/* Footer simple y limpio */}
+        <footer className="border-t border-[#1F332A] py-6 px-8 text-center text-xs text-slate-400">
           <div className="flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto gap-2">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#00F0A8]" />
-              <span className="font-semibold text-slate-300">NutrIA Bio-Platform v4.2</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="font-semibold text-slate-300">NutrIA</span>
               <span>—</span>
-              <span>Nutria Fit: Intelligent Fuel</span>
+              <span>Nutrición Inteligente y Alimentación Saludable</span>
             </div>
-            <div className="text-[11px] text-slate-400">
-              Certificación Grado Clínico & Despliegue Seguro Vercel/Django · Todos los derechos reservados © 2026
+            <div className="text-[11px] text-slate-500">
+              © 2026 NutrIA. Todos los derechos reservados.
             </div>
           </div>
         </footer>
       </div>
 
-      {/* Toast Flotante Bioadaptativo */}
+      {/* Toast Flotante */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-md bg-[#111827] border border-[#00F0A8]/50 text-white p-4 rounded-2xl shadow-2xl glow-mint flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 max-w-md bg-[#121C18] border border-emerald-500/50 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5"
+        >
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#00F0A8]/20 text-[#00F0A8] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
               <Sparkles size={16} />
             </div>
             <p className="text-xs font-semibold text-slate-200 leading-snug">
@@ -157,7 +174,8 @@ function AppContent() {
           </div>
           <button
             onClick={() => setToastMessage(null)}
-            className="text-slate-400 hover:text-white p-1"
+            aria-label="Cerrar notificación"
+            className="text-slate-400 hover:text-white p-1 rounded-lg transition"
           >
             <X size={15} />
           </button>
@@ -191,7 +209,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <MealProvider>
+        <AppContent />
+      </MealProvider>
     </AuthProvider>
   );
 }

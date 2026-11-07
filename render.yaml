@@ -15,3 +15,13 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
 
+  - type: static
+    name: nutria-frontend
+    rootDir: nutria-frontend
+    buildCommand: "npm install && npm run build"
+    publishPath: "dist"
+    routes:
+      - type: rewrite
+        source: "/*"
+        destination: "/index.html"
+
